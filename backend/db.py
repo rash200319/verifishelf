@@ -6,6 +6,10 @@ from aiomysql.cursors import DictCursor
 import redis.asyncio as redis
 from dotenv import load_dotenv
 
+#------------------------------------
+#setup and connection logic for MySQL and Redis
+#------------------------------------
+
 load_dotenv()
 
 mysql_pool = None
@@ -55,6 +59,9 @@ async def monitor_redis_health(ping_interval_seconds: int = 30):
         await asyncio.sleep(ping_interval_seconds)
 
 
+#----------------------------------
+# brand onboarding logic 
+#------------------------------------
 async def create_brand(name: str, plan: str):
     if mysql_pool is None:
         raise RuntimeError("MySQL pool is not initialized")
