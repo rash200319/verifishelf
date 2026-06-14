@@ -1,3 +1,6 @@
+CREATE DATABASE IF NOT EXISTS verifishelf;
+USE verifishelf;
+
 -- =====================================================
 -- BRANDS
 -- =====================================================
