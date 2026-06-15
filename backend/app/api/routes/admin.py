@@ -27,7 +27,6 @@ async def onboard_brand(payload: AdminBrandOnboardRequest, current_user: dict = 
     }
 
 
-@router.post("/create")
 @router.post("/users/create")
 async def create_user(payload: AdminUserCreateRequest, current_user: dict = Depends(require_admin)):
     try:
