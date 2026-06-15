@@ -1,5 +1,8 @@
 fastapi
 uvicorn
 aiomysql
-redis 
+redis
 python-dotenv
+alembic
+SQLAlchemy
+PyMySQL
