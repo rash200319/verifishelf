@@ -52,3 +52,12 @@ async def monitor_redis_health(ping_interval_seconds: int = 30):
             redis_health_ok = False
 
         await asyncio.sleep(ping_interval_seconds)
+
+
+async def close_mysql():
+    global mysql_pool
+
+    if mysql_pool is not None:
+        mysql_pool.close()
+        await mysql_pool.wait_closed()
+        mysql_pool = None

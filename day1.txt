@@ -2,28 +2,24 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 docker compose up -d mysql redis
 docker exec -i mysql_db mysql -uroot -prootpassword < backend\database\schema.sql
-docker compose up -d backend
+docker exec -i mysql_db mysql -uroot -prootpassword verifishelf < backend\database\seed_daraz_mvp.sql
+docker compose up -d backend celery-worker celery-beat
 
 alembic revision --autogenerate -m "add bio column to users table"
 alembic upgrade head
-## if you do changes to database 
+## if you do changes to database
 
-
-#celery commands
-#run celery
+# Celery (local, without Docker)
 celery -A app.core.celery.celery worker -P solo --loglevel=info --include=app.tasks.crawl_tasks
-#checking registered tasks
 celery -A app.core.celery.celery inspect registered
-#if you want beat running
 celery -A app.core.celery.celery beat --loglevel=info
 
-Day 2 plan
-Track A on Day 2 from the README is:
+# Day 3 Daraz MVP crawl defaults
+# brand_id=1, product_id=1, country_code=LK (see backend/database/seed_daraz_mvp.sql)
+# Beat schedule env overrides: CRAWL_BRAND_ID, CRAWL_PRODUCT_ID, CRAWL_COUNTRY_CODE, CRAWL_BEAT_INTERVAL_SECONDS
 
-Define the crawl_product task.
-Create the proxy abstraction module.
-Add simple auth.
-A clean order to do Day 2 would be:
+# Verify crawl rows after beat runs
+# docker exec -it mysql_db mysql -uroot -prootpassword verifishelf -e "SELECT COUNT(*) FROM listings; SELECT COUNT(*) FROM price_snapshots;"
 
-Add the proxy helper function next.
-Add simple auth last so the app can already authenticate before more endpoints land.
+# Tests
+python -m unittest tests.test_crawl_service -v

@@ -119,16 +119,31 @@ class CrawlService:
 
         for crawl_listing in crawl_result.listings:
             try:
-                listing = await ListingRepository.create_listing(
+                existing_listing = await ListingRepository.find_listing(
                     crawl_listing.product_id,
                     crawl_listing.seller_id,
                     crawl_listing.marketplace_id,
-                    crawl_listing.listing_title,
-                    crawl_listing.listing_url,
-                    crawl_listing.image_url,
-                    crawl_listing.advertised_price,
-                    crawl_listing.currency_code,
                 )
+                if existing_listing is None:
+                    listing = await ListingRepository.create_listing(
+                        crawl_listing.product_id,
+                        crawl_listing.seller_id,
+                        crawl_listing.marketplace_id,
+                        crawl_listing.listing_title,
+                        crawl_listing.listing_url,
+                        crawl_listing.image_url,
+                        crawl_listing.advertised_price,
+                        crawl_listing.currency_code,
+                    )
+                else:
+                    listing = await ListingRepository.update_listing(
+                        existing_listing["id"],
+                        crawl_listing.listing_title,
+                        crawl_listing.listing_url,
+                        crawl_listing.image_url,
+                        crawl_listing.advertised_price,
+                        crawl_listing.currency_code,
+                    )
             except Exception as exc:
                 logger.exception("Listing insert failed for brand_id=%s product_id=%s", brand_id, product_id)
                 return CrawlService._failure_result(

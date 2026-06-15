@@ -53,6 +53,59 @@ services:
     networks:
       - app_network
 
+  celery-worker:
+    build: ./backend
+    container_name: celery_worker
+    restart: always
+    depends_on:
+      - mysql
+      - redis
+    env_file:
+      - .env
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DB: ${MYSQL_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CRAWL_BRAND_ID: 1
+      CRAWL_PRODUCT_ID: 1
+      CRAWL_COUNTRY_CODE: LK
+      CRAWL_BEAT_INTERVAL_SECONDS: 60
+    command: >
+      celery -A app.core.celery.celery worker
+      -P solo --loglevel=info --include=app.tasks.crawl_tasks
+    networks:
+      - app_network
+
+  celery-beat:
+    build: ./backend
+    container_name: celery_beat
+    restart: always
+    depends_on:
+      - mysql
+      - redis
+      - celery-worker
+    env_file:
+      - .env
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DB: ${MYSQL_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CRAWL_BRAND_ID: 1
+      CRAWL_PRODUCT_ID: 1
+      CRAWL_COUNTRY_CODE: LK
+      CRAWL_BEAT_INTERVAL_SECONDS: 60
+    command: celery -A app.core.celery.celery beat --loglevel=info
+    networks:
+      - app_network
+
   frontend:
     build: ./frontend
     container_name: react_frontend

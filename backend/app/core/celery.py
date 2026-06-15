@@ -1,5 +1,8 @@
-from celery import Celery
 import os
+
+from celery import Celery
+
+from app.core.marketplaces import DEMO_BRAND_ID, DEMO_PRODUCT_ID, DARAZ_COUNTRY_CODE
 
 celery = Celery(
     "verifishelf",
@@ -10,10 +13,14 @@ celery = Celery(
 celery.conf.timezone = "Asia/Colombo"
 celery.conf.enable_utc = False
 celery.conf.beat_schedule = {
-    "crawl-product-every-minute": {
+    "daraz-crawl-every-minute": {
         "task": "app.tasks.crawl_tasks.crawl_product",
-        "schedule": 60.0,
-        "args": ("demo-brand", "demo-product"),
+        "schedule": float(os.getenv("CRAWL_BEAT_INTERVAL_SECONDS", "60")),
+        "args": (
+            int(os.getenv("CRAWL_BRAND_ID", str(DEMO_BRAND_ID))),
+            int(os.getenv("CRAWL_PRODUCT_ID", str(DEMO_PRODUCT_ID))),
+            os.getenv("CRAWL_COUNTRY_CODE", DARAZ_COUNTRY_CODE),
+        ),
     }
 }
 
