@@ -42,6 +42,7 @@ class CrawlService:
         return NormalizedCrawlListing(
             product_id=int(listing["product_id"]),
             seller_id=int(listing["seller_id"]),
+            seller_identity=str(listing["seller_identity"]).strip() if listing.get("seller_identity") else None,
             marketplace_id=int(listing["marketplace_id"]),
             seller_name=str(listing["seller_name"]).strip(),
             listing_title=str(listing["listing_title"]).strip(),

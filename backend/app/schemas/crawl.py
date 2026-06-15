@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 class CrawlListing(BaseModel):
     product_id: int
     seller_id: int
+    seller_identity: str | None = None
     marketplace_id: int
     seller_name: str = Field(min_length=1, max_length=255)
     listing_title: str = Field(min_length=1)
@@ -16,6 +17,7 @@ class CrawlListing(BaseModel):
 class NormalizedCrawlListing(BaseModel):
     product_id: int
     seller_id: int
+    seller_identity: str | None = None
     marketplace_id: int
     seller_name: str
     listing_title: str

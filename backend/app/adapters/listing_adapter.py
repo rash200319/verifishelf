@@ -41,6 +41,7 @@ def crawl_listings(brand_id: int, product_id: int, country_code: str, proxy_conf
     listing = CrawlListing(
         product_id=int(scraped.product_id),
         seller_id=int(scraped.variant_id or 1),
+        seller_identity=scraped.brand or f"daraz-variant-{scraped.variant_id}",
         marketplace_id=1,  # Daraz marketplace id (keep default for now)
         seller_name=scraped.brand or "Daraz Seller",
         listing_title=scraped.title,
