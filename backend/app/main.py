@@ -2,8 +2,8 @@ import asyncio
 
 from fastapi import FastAPI
 
-from app.api.routes.brands import router as brands_router
 from app.api.routes.auth import router as auth_router
+from app.api.routes.admin import router as admin_router
 from app.api.routes.health import router as health_router
 from app.core import db
 
@@ -42,4 +42,4 @@ async def shutdown():
 
 app.include_router(health_router)
 app.include_router(auth_router)
-app.include_router(brands_router)
+app.include_router(admin_router)

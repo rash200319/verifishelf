@@ -37,16 +37,30 @@ def _sign(payload_b64: str) -> str:
     ).hexdigest()
 
 
-def create_access_token(email: str) -> str:
+def create_access_token(payload: dict) -> str:
     now = int(time.time())
-    payload = {"sub": email, "iat": now, "exp": now + AUTH_TOKEN_TTL_SECONDS}
-    payload_b64 = _b64encode_json(payload)
+    token_payload = dict(payload)
+    token_payload["iat"] = now
+    token_payload["exp"] = now + AUTH_TOKEN_TTL_SECONDS
+    if "sub" not in token_payload:
+        token_payload["sub"] = token_payload.get("email", "user")
+    payload_b64 = _b64encode_json(token_payload)
     signature = _sign(payload_b64)
     return f"{payload_b64}.{signature}"
 
 
-def authenticate_user(email: str, password: str) -> bool:
-    return email == DEMO_AUTH_EMAIL and password == DEMO_AUTH_PASSWORD
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
+def verify_password(password: str, stored_password_hash: str) -> bool:
+    if stored_password_hash in {"hashed_password_here", "demo"}:
+        return password == DEMO_AUTH_PASSWORD
+
+    if stored_password_hash == password:
+        return True
+
+    return hmac.compare_digest(hash_password(password), stored_password_hash)
 
 
 def require_auth(authorization: str = Header(default="")) -> dict:
@@ -66,3 +80,11 @@ def require_auth(authorization: str = Header(default="")) -> dict:
         return payload
     except ValueError as exc:
         raise HTTPException(status_code=401, detail="Invalid token format") from exc
+
+
+def require_admin(authorization: str = Header(default="")) -> dict:
+    payload = require_auth(authorization)
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    return payload
