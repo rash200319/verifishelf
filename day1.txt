@@ -1,0 +1,29 @@
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+docker compose up -d mysql redis
+docker exec -i mysql_db mysql -uroot -prootpassword < backend\database\schema.sql
+docker compose up -d backend
+
+alembic revision --autogenerate -m "add bio column to users table"
+alembic upgrade head
+## if you do changes to database 
+
+
+#celery commands
+#run celery
+celery -A app.core.celery.celery worker -P solo --loglevel=info --include=app.tasks.crawl_tasks
+#checking registered tasks
+celery -A app.core.celery.celery inspect registered
+#if you want beat running
+celery -A app.core.celery.celery beat --loglevel=info
+
+Day 2 plan
+Track A on Day 2 from the README is:
+
+Define the crawl_product task.
+Create the proxy abstraction module.
+Add simple auth.
+A clean order to do Day 2 would be:
+
+Add the proxy helper function next.
+Add simple auth last so the app can already authenticate before more endpoints land.
