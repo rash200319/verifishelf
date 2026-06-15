@@ -1,14 +1,28 @@
 import asyncio
+import os
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.admin import router as admin_router
+from app.api.routes.crawl import router as crawl_router
 from app.api.routes.health import router as health_router
+from app.api.routes.promos import router as promos_router
+from app.api.routes.reports import router as reports_router
 from app.core import db
 
 app = FastAPI(title="VerifyShelf Backend")
 redis_health_task = None
+
+cors_origins = os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in cors_origins.split(",") if origin.strip()],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
@@ -43,3 +57,6 @@ async def shutdown():
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(promos_router)
+app.include_router(reports_router)
+app.include_router(crawl_router)

@@ -70,10 +70,12 @@ services:
       MYSQL_DB: ${MYSQL_DB}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      CRAWL_BRAND_ID: 1
-      CRAWL_PRODUCT_ID: 1
       CRAWL_COUNTRY_CODE: LK
-      CRAWL_BEAT_INTERVAL_SECONDS: 60
+      CRAWL_DEMO_MODE: "true"
+      CRAWL_SCHEDULER_TICK_SECONDS: 30
+      CRAWL_DEMO_INTERVAL_STARTER: 120
+      CRAWL_DEMO_INTERVAL_GROWTH: 60
+      CRAWL_DEMO_INTERVAL_ENTERPRISE: 30
     command: >
       celery -A app.core.celery.celery worker
       -P solo --loglevel=info --include=app.tasks.crawl_tasks
@@ -98,11 +100,31 @@ services:
       MYSQL_DB: ${MYSQL_DB}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      CRAWL_BRAND_ID: 1
-      CRAWL_PRODUCT_ID: 1
       CRAWL_COUNTRY_CODE: LK
-      CRAWL_BEAT_INTERVAL_SECONDS: 60
+      CRAWL_DEMO_MODE: "true"
+      CRAWL_SCHEDULER_TICK_SECONDS: 30
+      CRAWL_DEMO_INTERVAL_STARTER: 120
+      CRAWL_DEMO_INTERVAL_GROWTH: 60
+      CRAWL_DEMO_INTERVAL_ENTERPRISE: 30
     command: celery -A app.core.celery.celery beat --loglevel=info
+    networks:
+      - app_network
+
+  flower:
+    build: ./backend
+    container_name: flower_dashboard
+    restart: always
+    depends_on:
+      - redis
+      - celery-worker
+    env_file:
+      - .env
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    command: celery -A app.core.celery.celery flower --port=5555
+    ports:
+      - "5555:5555"
     networks:
       - app_network
 

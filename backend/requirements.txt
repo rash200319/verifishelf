@@ -8,4 +8,5 @@ SQLAlchemy
 PyMySQL
 celery
 cryptography
+flower
 

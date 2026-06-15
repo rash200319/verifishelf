@@ -1,0 +1,116 @@
+import json
+from datetime import date, timedelta
+
+from app.repositories.brand_repository import BrandRepository
+from app.repositories.weekly_report_repository import WeeklyReportRepository
+
+
+class WeeklyReportService:
+    @staticmethod
+    def _default_date_range():
+        end_date = date.today()
+        start_date = end_date - timedelta(days=6)
+        return start_date, end_date
+
+    @staticmethod
+    def _to_float(value) -> float | None:
+        if value is None:
+            return None
+        return float(value)
+
+    @staticmethod
+    def _build_narrative(brand_name: str, start_date: date, end_date: date, summary: dict, products: list) -> str:
+        lines = [
+            f"Weekly MAP monitoring report for {brand_name}",
+            f"Period: {start_date.isoformat()} to {end_date.isoformat()}",
+            "",
+            f"Listings monitored: {summary['listings_monitored']}",
+            f"Price snapshots captured: {summary['price_snapshots']}",
+            f"Violations detected: {summary['violations_detected']} ({summary['violations_open']} still open)",
+            f"Active promo windows overlapping this period: {summary['active_promo_windows']}",
+        ]
+
+        if products:
+            lines.append("")
+            lines.append("Product highlights:")
+            for product in products:
+                avg_price = WeeklyReportService._to_float(product.get("avg_observed_price"))
+                map_price = WeeklyReportService._to_float(product.get("map_price"))
+                latest_price = WeeklyReportService._to_float(product.get("latest_price"))
+                avg_text = f"{avg_price:.2f}" if avg_price is not None else "n/a"
+                latest_text = f"{latest_price:.2f}" if latest_price is not None else "n/a"
+                lines.append(
+                    f"- {product['product_name']}: MAP {map_price:.2f}, "
+                    f"avg observed {avg_text}, latest {latest_text}, "
+                    f"{int(product.get('snapshot_count') or 0)} snapshots"
+                )
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _serialize_product_row(row: dict) -> dict:
+        return {
+            "product_id": int(row["product_id"]),
+            "product_name": row["product_name"],
+            "map_price": WeeklyReportService._to_float(row["map_price"]) or 0.0,
+            "avg_observed_price": WeeklyReportService._to_float(row.get("avg_observed_price")),
+            "snapshot_count": int(row.get("snapshot_count") or 0),
+            "latest_price": WeeklyReportService._to_float(row.get("latest_price")),
+        }
+
+    @staticmethod
+    def _build_report_payload(brand_name: str, start_date: date, end_date: date, metrics: dict) -> dict:
+        summary = metrics["summary"]
+        products = [WeeklyReportService._serialize_product_row(row) for row in metrics["products"]]
+        narrative = WeeklyReportService._build_narrative(brand_name, start_date, end_date, summary, products)
+
+        return {
+            "summary": summary,
+            "products": products,
+            "narrative": narrative,
+        }
+
+    @staticmethod
+    def _format_report_row(row: dict) -> dict:
+        content = json.loads(row["report_content"]) if row.get("report_content") else {}
+        return {
+            "id": row["id"],
+            "brand_id": row["brand_id"],
+            "report_start_date": row["report_start_date"],
+            "report_end_date": row["report_end_date"],
+            "summary": content.get("summary", {}),
+            "products": content.get("products", []),
+            "narrative": content.get("narrative", ""),
+            "generated_at": row["generated_at"],
+        }
+
+    @classmethod
+    async def generate_report(cls, brand_id: int, start_date: date | None = None, end_date: date | None = None):
+        if start_date is None or end_date is None:
+            default_start, default_end = cls._default_date_range()
+            start_date = start_date or default_start
+            end_date = end_date or default_end
+
+        if end_date < start_date:
+            raise ValueError("end_date must be on or after start_date")
+
+        brand = await BrandRepository.get_brand_by_id(brand_id)
+        if brand is None:
+            raise ValueError(f"Brand {brand_id} not found")
+
+        metrics = await WeeklyReportRepository.aggregate_brand_metrics(brand_id, start_date, end_date)
+        payload = cls._build_report_payload(brand["name"], start_date, end_date, metrics)
+        stored = await WeeklyReportRepository.create_report(brand_id, start_date, end_date, payload)
+        return cls._format_report_row(stored)
+
+    @classmethod
+    async def list_reports(cls, brand_id: int, limit: int = 20):
+        rows = await WeeklyReportRepository.list_reports(brand_id, limit)
+        return [cls._format_report_row(row) for row in rows]
+
+    @classmethod
+    async def get_report(cls, brand_id: int, report_id: int):
+        row = await WeeklyReportRepository.get_report(report_id, brand_id)
+        if row is None:
+            return None
+        return cls._format_report_row(row)

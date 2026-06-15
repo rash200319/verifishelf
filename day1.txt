@@ -1,25 +1,29 @@
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 docker compose up -d mysql redis
-docker exec -i mysql_db mysql -uroot -prootpassword < backend\database\schema.sql
-docker exec -i mysql_db mysql -uroot -prootpassword verifishelf < backend\database\seed_daraz_mvp.sql
-docker compose up -d backend celery-worker celery-beat
+Get-Content backend\database\schema.sql | docker exec -i mysql_db mysql -uroot -p<password>
+Get-Content backend\database\seed_daraz_mvp.sql | docker exec -i mysql_db mysql -uroot -p<password> verifishelf
+docker compose up -d backend celery-worker celery-beat flower
 
-alembic revision --autogenerate -m "add bio column to users table"
 alembic upgrade head
 ## if you do changes to database
 
 # Celery (local, without Docker)
 celery -A app.core.celery.celery worker -P solo --loglevel=info --include=app.tasks.crawl_tasks
-celery -A app.core.celery.celery inspect registered
 celery -A app.core.celery.celery beat --loglevel=info
+celery -A app.core.celery.celery flower --port=5555
 
-# Day 3 Daraz MVP crawl defaults
-# brand_id=1, product_id=1, country_code=LK (see backend/database/seed_daraz_mvp.sql)
-# Beat schedule env overrides: CRAWL_BRAND_ID, CRAWL_PRODUCT_ID, CRAWL_COUNTRY_CODE, CRAWL_BEAT_INTERVAL_SECONDS
-
-# Verify crawl rows after beat runs
-# docker exec -it mysql_db mysql -uroot -prootpassword verifishelf -e "SELECT COUNT(*) FROM listings; SELECT COUNT(*) FROM price_snapshots;"
+# Monitoring
+# API docs:  http://localhost:8000/docs
+# Flower:    http://localhost:5555
+# Full docs: backend/TRACK_A.md
 
 # Tests
-python -m unittest tests.test_crawl_service -v
+python -m unittest discover -s tests -v
+
+# Day 4 APIs (Bearer token from POST /auth/login)
+# POST /promos, GET /promos
+# POST /reports/weekly, GET /reports/weekly
+
+# Day 5 APIs
+# GET /crawl/schedule, GET /crawl/jobs, GET /crawl/jobs/{id}
