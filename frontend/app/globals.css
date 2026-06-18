@@ -160,3 +160,16 @@ a {
 .monospace {
   font-family: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
 }
+
+@keyframes ticker-scroll {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.animate-ticker {
+  animation: ticker-scroll 18s linear infinite;
+}

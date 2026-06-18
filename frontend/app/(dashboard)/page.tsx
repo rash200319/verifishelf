@@ -20,6 +20,7 @@ import { BoltedCard } from "@/components/ui/bolted-card";
 import { CrtMonitor } from "@/components/ui/crt-monitor";
 import { DataInput } from "@/components/ui/data-input";
 import { TactileButton } from "@/components/ui/tactile-button";
+import { DashboardPreview } from "@/components/dashboard-preview";
 
 const stats = [
   { label: "TAM", value: "$4.2B", note: "Brand protection software" },
@@ -140,8 +141,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-16 pb-10">
 
-        <section className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
-          <div className="space-y-8">
+        <section className="grid items-start gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+          <div className="space-y-8 lg:pt-[21px]">
             <div className="space-y-6">
               <div className="monospace text-xs font-semibold uppercase tracking-widest text-[var(--foreground-muted)] flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_8px_rgba(79,70,229,0.6)] animate-pulse" />
@@ -177,92 +178,7 @@ export default function DashboardPage() {
 
           <div>
             <CrtMonitor className="rotate-[0.2deg]">
-              <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                <div className="space-y-4 rounded-[20px] bg-[rgba(9,13,17,0.72)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
-                  <div className="flex items-center justify-between text-[0.64rem] font-bold uppercase tracking-[0.24em] text-[rgba(232,238,244,0.65)]">
-                    <span>Live feed</span>
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#facc15] shadow-[0_0_10px_rgba(250,204,21,0.8)]" />
-                      18 listings / minute
-                    </span>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[
-                      ["Daraz PK", "MAP violation", "-18.4%", "warning", "65%"],
-                      ["Shopee ID", "Grey market", "-9.2%", "warning", "80%"],
-                      ["Tokopedia", "Compliant", "0.0%", "compliant", "100%"],
-                      ["Flipkart", "Counterfeit risk", "-31.7%", "severe", "35%"],
-                    ].map(([marketplace, label, delta, severity, width]) => {
-                      const deltaColor =
-                        severity === "severe"
-                          ? "text-[#ff8b94]"
-                          : severity === "warning"
-                            ? "text-[#fde68a]"
-                            : "text-[#86efac]";
-                      const barColor =
-                        severity === "severe"
-                          ? "bg-[#ff4757]"
-                          : severity === "warning"
-                            ? "bg-[#f59e0b]"
-                            : "bg-[#22c55e]";
-                      return (
-                        <div key={marketplace} className="rounded-[18px] bg-[rgba(255,255,255,0.05)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
-                          <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold text-white">
-                            <span>{marketplace}</span>
-                            <span className={`monospace shrink-0 ${deltaColor}`}>{delta}</span>
-                          </div>
-                          <p className="mt-2 text-[0.72rem] uppercase tracking-[0.18em] text-[rgba(232,238,244,0.55)]">{label}</p>
-                          <div className="mt-3 h-2 rounded-full bg-[rgba(255,255,255,0.08)]">
-                            <div
-                              className={`h-2 rounded-full ${barColor}`}
-                              style={{ width }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="space-y-4 rounded-[20px] bg-[rgba(255,255,255,0.04)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
-                  <div className="flex items-center justify-between text-[0.64rem] font-bold uppercase tracking-[0.24em] text-[rgba(232,238,244,0.64)]">
-                    <span>Pipeline status</span>
-                    <span className="monospace text-[#93c5fd]">&lt; 500ms</span>
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      ["Proxy routing", "online"],
-                      ["Playwright extraction", "active"],
-                      ["XGBoost scoring", "active"],
-                      ["GPT-4o draft queue", "ready"],
-                    ].map(([label, state]) => (
-                      <div key={label} className="flex items-center justify-between rounded-[16px] bg-[rgba(9,13,17,0.7)] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
-                        <span className="text-sm font-medium text-white">{label}</span>
-                        <span className="monospace rounded-full border border-[rgba(34,197,94,0.4)] bg-[rgba(34,197,94,0.06)] px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#86efac]">
-                          {state}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="rounded-[20px] bg-[rgba(255,255,255,0.06)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
-                    <div className="flex items-center gap-3">
-                      <div className="h-11 w-11 rounded-full bg-[rgba(255,71,87,0.12)] shadow-[inset_0_0_0_1px_rgba(255,71,87,0.22)]">
-                        <TriangleAlert className="m-2.5 h-6 w-6 text-[#ff8b94]" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white">Latest enforcement packet</p>
-                        <p className="text-sm text-[rgba(232,238,244,0.62)]">1 C&D draft, 2 screenshots, 3 marketplace citations</p>
-                      </div>
-                    </div>
-                    <div className="mt-4 grid grid-cols-3 gap-3 text-center text-[0.66rem] font-bold uppercase tracking-[0.18em] text-[rgba(232,238,244,0.64)]">
-                      <div className="rounded-[14px] bg-[rgba(255,255,255,0.05)] p-2">Evidence</div>
-                      <div className="rounded-[14px] bg-[rgba(255,255,255,0.05)] p-2">Review</div>
-                      <div className="rounded-[14px] bg-[rgba(255,255,255,0.05)] p-2">Send</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <DashboardPreview />
             </CrtMonitor>
           </div>
         </section>
