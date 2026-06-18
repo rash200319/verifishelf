@@ -142,13 +142,12 @@ export default function DashboardPage() {
 
         <section className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           <div className="space-y-8">
-            <div className="inline-flex items-center gap-3 rounded-full bg-[rgba(255,255,255,0.7)] px-4 py-2 text-[0.7rem] font-bold uppercase tracking-[0.24em] text-[var(--foreground-muted)] shadow-[var(--shadow-card)]">
-              <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_10px_rgba(255,71,87,0.55)]" />
-              Powered by Torch residential and ISP proxy infrastructure
-            </div>
-
-            <div className="space-y-5">
-              <h2 className="max-w-3xl text-5xl font-extrabold tracking-[-0.05em] text-[var(--foreground)] drop-shadow-[0_1px_0_#ffffff] sm:text-6xl lg:text-7xl">
+            <div className="space-y-6">
+              <div className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--accent)] flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_8px_rgba(255,71,87,0.6)] animate-pulse" />
+                Torch Proxies Infrastructure Integrated
+              </div>
+              <h2 className="max-w-3xl text-4xl font-extrabold tracking-[-0.04em] leading-[1.15] text-[var(--foreground)] drop-shadow-[0_1px_0_#ffffff] sm:text-5xl lg:text-5xl">
                 Industrial-grade enforcement for brands losing control at the marketplace edge.
               </h2>
               <p className="max-w-2xl text-lg leading-8 text-[var(--foreground-muted)] sm:text-xl">
@@ -195,9 +194,9 @@ export default function DashboardPage() {
                       ["Flipkart", "Counterfeit risk", "-31.7%"],
                     ].map(([marketplace, label, delta]) => (
                       <div key={marketplace} className="rounded-[18px] bg-[rgba(255,255,255,0.05)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
-                        <div className="flex items-center justify-between text-sm font-bold text-white">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold text-white">
                           <span>{marketplace}</span>
-                          <span className="monospace text-[#9be7b8]">{delta}</span>
+                          <span className="monospace text-[#9be7b8] shrink-0">{delta}</span>
                         </div>
                         <p className="mt-2 text-[0.72rem] uppercase tracking-[0.18em] text-[rgba(232,238,244,0.55)]">{label}</p>
                         <div className="mt-3 h-2 rounded-full bg-[rgba(255,255,255,0.08)]">
@@ -225,7 +224,13 @@ export default function DashboardPage() {
                     ].map(([label, state, tone]) => (
                       <div key={label} className="flex items-center justify-between rounded-[16px] bg-[rgba(9,13,17,0.7)] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                         <span className="text-sm font-medium text-white">{label}</span>
-                        <span className={`monospace rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.18em] ${tone === "green" ? "bg-[rgba(34,197,94,0.15)] text-[#86efac]" : tone === "amber" ? "bg-[rgba(250,204,21,0.14)] text-[#fde68a]" : "bg-[rgba(59,130,246,0.14)] text-[#bfdbfe]"}`}>
+                        <span className={`monospace rounded-full border px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.18em] ${
+                          tone === "green"
+                            ? "border-[rgba(34,197,94,0.4)] bg-[rgba(34,197,94,0.06)] text-[#86efac]"
+                            : tone === "amber"
+                              ? "border-[rgba(250,204,21,0.4)] bg-[rgba(250,204,21,0.06)] text-[#fde68a]"
+                              : "border-[rgba(59,130,246,0.4)] bg-[rgba(59,130,246,0.06)] text-[#bfdbfe]"
+                        }`}>
                           {state}
                         </span>
                       </div>
