@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { ShieldCheck } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navigation = [
   { href: "/", label: "Overview" },
@@ -39,23 +40,27 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               </div>
             </div>
 
-            <nav className="flex flex-wrap items-center gap-2">
-              {navigation.map((item) => {
-                const active = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "machine-floating rounded-full px-4 py-2 text-[0.68rem] font-bold uppercase tracking-[0.2em] transition hover:text-[var(--foreground)]",
-                      active ? "bg-[var(--foreground)] text-[var(--accent-foreground)]" : "text-[var(--foreground-muted)]",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
+            <div className="flex flex-wrap items-center gap-4 self-end lg:self-auto">
+              <nav className="flex flex-wrap items-center gap-2">
+                {navigation.map((item) => {
+                  const active = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "machine-floating rounded-full px-4 py-2 text-[0.68rem] font-bold uppercase tracking-[0.2em] transition hover:text-[var(--foreground)]",
+                        active ? "bg-[var(--foreground)] text-[var(--accent-foreground)]" : "text-[var(--foreground-muted)]",
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+              <div className="h-6 w-[1px] bg-[var(--muted)] hidden sm:block" />
+              <ThemeToggle />
+            </div>
           </div>
         </header>
 

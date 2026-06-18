@@ -37,9 +37,9 @@ export default function PricingPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {plans.map((plan) => (
-          <BoltedCard key={plan.name} className={plan.featured ? "ring-2 ring-[rgba(255,71,87,0.22)]" : ""}>
+          <BoltedCard key={plan.name} className={plan.featured ? "ring-2 ring-[rgba(79,70,229,0.22)]" : ""}>
             {plan.featured ? (
-              <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(255,71,87,0.12)] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.24em] text-[var(--accent)]">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(79,70,229,0.12)] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.24em] text-[var(--accent)]">
                 Recommended
               </div>
             ) : null}
@@ -76,7 +76,7 @@ export default function PricingPage() {
               { icon: TimerReset, title: "Freshness", detail: "More expensive tiers refresh more often and catch drift sooner." },
               { icon: TriangleAlert, title: "Escalation", detail: "Higher tiers unlock enforcement letters and faster review." },
             ].map((item) => (
-              <div key={item.title} className="rounded-[18px] bg-[rgba(255,255,255,0.62)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)]">
+              <div key={item.title} className="rounded-[18px] bg-[rgba(255,255,255,0.62)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                 <div className="flex items-center gap-2">
                   <item.icon className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
                   <p className="text-sm font-bold text-[var(--foreground)]">{item.title}</p>
@@ -89,7 +89,7 @@ export default function PricingPage() {
 
         <BoltedCard>
           <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Value narrative</p>
-          <div className="mt-4 rounded-[18px] bg-[rgba(255,255,255,0.62)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)]">
+          <div className="mt-4 rounded-[18px] bg-[rgba(255,255,255,0.62)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
               <p className="text-sm font-bold text-[var(--foreground)]">Accessible to SMBs</p>

@@ -51,15 +51,15 @@ export default function ViolationsPage() {
                   </p>
                 </div>
                 <div className="grid grid-cols-3 gap-3 text-center sm:w-72">
-                  <div className="rounded-[16px] bg-[rgba(255,255,255,0.62)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)]">
+                  <div className="rounded-[16px] bg-[rgba(255,255,255,0.62)] dark:bg-[rgba(255,255,255,0.03)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                     <p className="monospace text-[0.62rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)]">Delta</p>
                     <p className="mt-1 text-lg font-extrabold text-[var(--foreground)]">{item.delta}</p>
                   </div>
-                  <div className="rounded-[16px] bg-[rgba(255,255,255,0.62)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)]">
+                  <div className="rounded-[16px] bg-[rgba(255,255,255,0.62)] dark:bg-[rgba(255,255,255,0.03)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                     <p className="monospace text-[0.62rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)]">Score</p>
                     <p className="mt-1 text-lg font-extrabold text-[var(--foreground)]">{item.confidence}</p>
                   </div>
-                  <div className="rounded-[16px] bg-[rgba(255,71,87,0.08)] p-3 shadow-[inset_0_0_0_1px_rgba(255,71,87,0.18)]">
+                  <div className="rounded-[16px] bg-[rgba(79,70,229,0.08)] p-3 shadow-[inset_0_0_0_1px_rgba(79,70,229,0.18)]">
                     <p className="monospace text-[0.62rem] font-bold uppercase tracking-[0.22em] text-[var(--accent)]">State</p>
                     <p className="mt-1 text-lg font-extrabold text-[var(--foreground)]">Open</p>
                   </div>
@@ -79,7 +79,7 @@ export default function ViolationsPage() {
                 { icon: TimerReset, label: "Freshness", detail: "Detected 12 minutes ago through localized crawl" },
                 { icon: ShieldX, label: "Action", detail: "Needs brand approval before takedown" },
               ].map((item) => (
-                <div key={item.label} className="rounded-[18px] bg-[rgba(255,255,255,0.62)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)]">
+                <div key={item.label} className="rounded-[18px] bg-[rgba(255,255,255,0.62)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                   <div className="flex items-center gap-2">
                     <item.icon className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
                     <p className="text-sm font-bold text-[var(--foreground)]">{item.label}</p>
@@ -104,7 +104,7 @@ export default function ViolationsPage() {
                     <span className="font-medium text-[var(--foreground)]">{label}</span>
                     <span className="monospace text-[var(--foreground-muted)]">{value}%</span>
                   </div>
-                  <div className="mt-2 h-2 rounded-full bg-[rgba(255,255,255,0.65)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.76)]">
+                  <div className="mt-2 h-2 rounded-full bg-[rgba(255,255,255,0.65)] dark:bg-[rgba(255,255,255,0.08)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.76)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                     <div className="h-2 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#f59e0b]" style={{ width: `${value}%` }} />
                   </div>
                 </div>

@@ -41,7 +41,7 @@ export default function ReportsPage() {
 
           <div className="mt-6 space-y-4">
             {reports.map((report) => (
-              <div key={report.title} className="rounded-[18px] bg-[rgba(255,255,255,0.62)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)]">
+              <div key={report.title} className="rounded-[18px] bg-[rgba(255,255,255,0.62)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                 <p className="text-sm font-bold text-[var(--foreground)]">{report.title}</p>
                 <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{report.summary}</p>
               </div>
@@ -58,7 +58,7 @@ export default function ReportsPage() {
                 { icon: Mail, label: "After approval", detail: "Send enforcement packet to marketplace" },
                 { icon: Sparkles, label: "On demand", detail: "Re-run draft after new evidence arrives" },
               ].map((item) => (
-                <div key={item.label} className="rounded-[18px] bg-[rgba(255,255,255,0.62)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)]">
+                <div key={item.label} className="rounded-[18px] bg-[rgba(255,255,255,0.62)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                   <div className="flex items-center gap-2">
                     <item.icon className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
                     <p className="text-sm font-bold text-[var(--foreground)]">{item.label}</p>
@@ -71,7 +71,7 @@ export default function ReportsPage() {
 
           <BoltedCard>
             <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Outcome</p>
-            <div className="mt-4 flex items-center gap-3 rounded-[18px] bg-[rgba(255,255,255,0.62)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)]">
+            <div className="mt-4 flex items-center gap-3 rounded-[18px] bg-[rgba(255,255,255,0.62)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.82)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
               <BarChart3 className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
               <div>
                 <p className="text-sm font-bold text-[var(--foreground)]">Board-ready summary</p>

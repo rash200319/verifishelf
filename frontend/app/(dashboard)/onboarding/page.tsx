@@ -56,7 +56,7 @@ export default function OnboardingPage() {
 
           <div className="mt-6 space-y-4">
             {setupSteps.map((step) => (
-              <div key={step.title} className="rounded-[18px] bg-[rgba(255,255,255,0.62)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.8)]">
+              <div key={step.title} className="rounded-[18px] bg-[rgba(255,255,255,0.62)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
                   <p className="text-sm font-bold text-[var(--foreground)]">{step.title}</p>
@@ -84,7 +84,7 @@ export default function OnboardingPage() {
             </TactileButton>
           </div>
 
-          <div className="mt-6 rounded-[20px] bg-[rgba(255,255,255,0.6)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.8)]">
+          <div className="mt-6 rounded-[20px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
             <div className="flex items-center gap-2">
               <Database className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
               <p className="text-sm font-bold text-[var(--foreground)]">Seeded data</p>

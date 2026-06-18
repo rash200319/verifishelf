@@ -15,7 +15,7 @@ type AnchorProps = SharedProps & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "
 function variantClassName(variant: Variant) {
   switch (variant) {
     case "primary":
-      return "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-[4px_4px_8px_rgba(166,50,60,0.4),-4px_-4px_8px_rgba(255,100,110,0.4)] hover:brightness-105";
+      return "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-[4px_4px_8px_rgba(79,70,229,0.35),-4px_-4px_8px_rgba(120,110,255,0.25)] hover:brightness-105";
     case "ghost":
       return "bg-transparent text-[var(--foreground-muted)] hover:bg-[rgba(255,255,255,0.7)] hover:text-[var(--foreground)] hover:shadow-[var(--shadow-recessed)]";
     default:

@@ -143,11 +143,11 @@ export default function DashboardPage() {
         <section className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           <div className="space-y-8">
             <div className="space-y-6">
-              <div className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--accent)] flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_8px_rgba(255,71,87,0.6)] animate-pulse" />
+              <div className="monospace text-xs font-semibold uppercase tracking-widest text-[var(--foreground-muted)] flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_8px_rgba(79,70,229,0.6)] animate-pulse" />
                 Torch Proxies Infrastructure Integrated
               </div>
-              <h2 className="max-w-3xl text-4xl font-extrabold tracking-[-0.04em] leading-[1.15] text-[var(--foreground)] drop-shadow-[0_1px_0_#ffffff] sm:text-5xl lg:text-5xl">
+              <h2 className="max-w-3xl text-4xl font-bold tracking-tight leading-snug text-[var(--foreground)] drop-shadow-[0_1px_0_#ffffff] sm:text-5xl lg:text-5xl">
                 Industrial-grade enforcement for brands losing control at the marketplace edge.
               </h2>
               <p className="max-w-2xl text-lg leading-8 text-[var(--foreground-muted)] sm:text-xl">
@@ -188,25 +188,39 @@ export default function DashboardPage() {
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {[
-                      ["Daraz PK", "MAP violation", "-18.4%"],
-                      ["Shopee ID", "Grey market", "-9.2%"],
-                      ["Tokopedia", "Compliant", "0.0%"],
-                      ["Flipkart", "Counterfeit risk", "-31.7%"],
-                    ].map(([marketplace, label, delta]) => (
-                      <div key={marketplace} className="rounded-[18px] bg-[rgba(255,255,255,0.05)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold text-white">
-                          <span>{marketplace}</span>
-                          <span className="monospace text-[#9be7b8] shrink-0">{delta}</span>
+                      ["Daraz PK", "MAP violation", "-18.4%", "warning", "65%"],
+                      ["Shopee ID", "Grey market", "-9.2%", "warning", "80%"],
+                      ["Tokopedia", "Compliant", "0.0%", "compliant", "100%"],
+                      ["Flipkart", "Counterfeit risk", "-31.7%", "severe", "35%"],
+                    ].map(([marketplace, label, delta, severity, width]) => {
+                      const deltaColor =
+                        severity === "severe"
+                          ? "text-[#ff8b94]"
+                          : severity === "warning"
+                            ? "text-[#fde68a]"
+                            : "text-[#86efac]";
+                      const barColor =
+                        severity === "severe"
+                          ? "bg-[#ff4757]"
+                          : severity === "warning"
+                            ? "bg-[#f59e0b]"
+                            : "bg-[#22c55e]";
+                      return (
+                        <div key={marketplace} className="rounded-[18px] bg-[rgba(255,255,255,0.05)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold text-white">
+                            <span>{marketplace}</span>
+                            <span className={`monospace shrink-0 ${deltaColor}`}>{delta}</span>
+                          </div>
+                          <p className="mt-2 text-[0.72rem] uppercase tracking-[0.18em] text-[rgba(232,238,244,0.55)]">{label}</p>
+                          <div className="mt-3 h-2 rounded-full bg-[rgba(255,255,255,0.08)]">
+                            <div
+                              className={`h-2 rounded-full ${barColor}`}
+                              style={{ width }}
+                            />
+                          </div>
                         </div>
-                        <p className="mt-2 text-[0.72rem] uppercase tracking-[0.18em] text-[rgba(232,238,244,0.55)]">{label}</p>
-                        <div className="mt-3 h-2 rounded-full bg-[rgba(255,255,255,0.08)]">
-                          <div
-                            className="h-2 rounded-full bg-gradient-to-r from-[#ff4757] via-[#f59e0b] to-[#22c55e]"
-                            style={{ width: marketplace === "Tokopedia" ? "100%" : "72%" }}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -217,20 +231,14 @@ export default function DashboardPage() {
                   </div>
                   <div className="space-y-3">
                     {[
-                      ["Proxy routing", "online", "green"],
-                      ["Playwright extraction", "active", "amber"],
-                      ["XGBoost scoring", "warm", "blue"],
-                      ["GPT-4o draft queue", "ready", "green"],
-                    ].map(([label, state, tone]) => (
+                      ["Proxy routing", "online"],
+                      ["Playwright extraction", "active"],
+                      ["XGBoost scoring", "active"],
+                      ["GPT-4o draft queue", "ready"],
+                    ].map(([label, state]) => (
                       <div key={label} className="flex items-center justify-between rounded-[16px] bg-[rgba(9,13,17,0.7)] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                         <span className="text-sm font-medium text-white">{label}</span>
-                        <span className={`monospace rounded-full border px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.18em] ${
-                          tone === "green"
-                            ? "border-[rgba(34,197,94,0.4)] bg-[rgba(34,197,94,0.06)] text-[#86efac]"
-                            : tone === "amber"
-                              ? "border-[rgba(250,204,21,0.4)] bg-[rgba(250,204,21,0.06)] text-[#fde68a]"
-                              : "border-[rgba(59,130,246,0.4)] bg-[rgba(59,130,246,0.06)] text-[#bfdbfe]"
-                        }`}>
+                        <span className="monospace rounded-full border border-[rgba(34,197,94,0.4)] bg-[rgba(34,197,94,0.06)] px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#86efac]">
                           {state}
                         </span>
                       </div>
@@ -320,7 +328,7 @@ export default function DashboardPage() {
             <h3 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">A crawl becomes a clean enforcement artifact.</h3>
             <div className="mt-6 space-y-3">
               {workflowSteps.map((step, index) => (
-                <div key={step} className="flex gap-4 rounded-[18px] bg-[rgba(255,255,255,0.55)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.75)]">
+                <div key={step} className="flex gap-4 rounded-[18px] bg-[rgba(255,255,255,0.55)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.75)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--background)] font-mono text-sm font-extrabold text-[var(--accent)] shadow-[var(--shadow-card)]">
                     {index + 1}
                   </div>
@@ -343,14 +351,14 @@ export default function DashboardPage() {
                 ["price_snapshots", "Timescale-backed daily trend store"],
                 ["enforcement_letters", "GPT-4o output with linked evidence"],
               ].map(([label, description]) => (
-                <div key={label} className="rounded-[18px] bg-[rgba(255,255,255,0.6)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.85)]">
+                <div key={label} className="rounded-[18px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.85)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                   <p className="monospace text-[0.66rem] font-bold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">{label}</p>
                   <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{description}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 rounded-[20px] bg-[rgba(255,255,255,0.6)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.85)]">
+            <div className="mt-6 rounded-[20px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.85)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
               <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">Brand intake</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-[1.2fr_0.8fr]">
                 <DataInput placeholder="Brand name or workspace label" aria-label="Brand name" />
@@ -413,9 +421,9 @@ export default function DashboardPage() {
 
           <div className="grid gap-5 lg:grid-cols-3">
             {plans.map((plan) => (
-              <BoltedCard key={plan.name} className={plan.featured ? "ring-2 ring-[rgba(255,71,87,0.22)]" : ""}>
+              <BoltedCard key={plan.name} className={plan.featured ? "ring-2 ring-[rgba(79,70,229,0.22)]" : ""}>
                 {plan.featured ? (
-                  <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(255,71,87,0.12)] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.24em] text-[var(--accent)]">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(79,70,229,0.12)] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.24em] text-[var(--accent)]">
                     Recommended
                   </div>
                 ) : null}
@@ -450,7 +458,7 @@ export default function DashboardPage() {
             <h3 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Industrial-grade risk controls built directly into the tracking pipeline.</h3>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
               {risks.map(([label, detail]) => (
-                <div key={label} className="rounded-[18px] bg-[rgba(255,255,255,0.6)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.85)]">
+                <div key={label} className="rounded-[18px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(255,255,255,0.03)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.85)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                   <div className="flex items-center gap-2">
                     <ShieldX className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
                     <p className="text-sm font-bold text-[var(--foreground)]">{label}</p>
@@ -472,22 +480,22 @@ export default function DashboardPage() {
                   See how VerifyShelf can monitor your catalog, identify MAP violations, and automatically draft enforcement letters for your brand.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(255,255,255,0.7)] px-3 py-2 text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)] shadow-[var(--shadow-card)]">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(255,255,255,0.7)] dark:bg-[rgba(255,255,255,0.03)] px-3 py-2 text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)] shadow-[var(--shadow-card)] dark:shadow-none">
                     <Mail className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />
                     Email alerts
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(255,255,255,0.7)] px-3 py-2 text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)] shadow-[var(--shadow-card)]">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(255,255,255,0.7)] dark:bg-[rgba(255,255,255,0.03)] px-3 py-2 text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)] shadow-[var(--shadow-card)] dark:shadow-none">
                     <Slack className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />
                     Slack notifications
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(255,255,255,0.7)] px-3 py-2 text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)] shadow-[var(--shadow-card)]">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(255,255,255,0.7)] dark:bg-[rgba(255,255,255,0.03)] px-3 py-2 text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)] shadow-[var(--shadow-card)] dark:shadow-none">
                     <BarChart3 className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />
                     Weekly reports
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-[24px] bg-[rgba(255,255,255,0.62)] p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.85)]">
+              <div className="rounded-[24px] bg-[rgba(255,255,255,0.62)] dark:bg-[rgba(255,255,255,0.03)] p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.85)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                 <div className="space-y-3">
                   <DataInput placeholder="Workspace name" aria-label="Workspace name" />
                   <DataInput placeholder="Brand email" aria-label="Brand email" />
