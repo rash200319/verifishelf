@@ -1,24 +1,61 @@
 import uuid
 
 from app.repositories.brand_repository import BrandRepository
+from app.repositories.user_repository import UserRepository
 
 
 class BrandService:
     @staticmethod
-    async def create_brand(name: str, plan: str):
+    async def create_brand(
+        name: str,
+        plan: str,
+        *,
+        company_name: str | None = None,
+        business_url: str | None = None,
+        onboarding_notes: str | None = None,
+    ):
         torch_sub_id = f"torch_{uuid.uuid4().hex[:12]}"
-        return await BrandRepository.insert_brand(name, plan, torch_sub_id)
+        return await BrandRepository.insert_brand(
+            name,
+            plan,
+            torch_sub_id,
+            company_name=company_name,
+            business_url=business_url,
+            onboarding_notes=onboarding_notes,
+        )
 
     @staticmethod
-    async def onboard_brand(name: str, plan: str, current_user: dict):
-        existing_brand = await BrandRepository.get_brand_by_name(name)
+    async def list_pending_brands():
+        return await BrandRepository.list_pending_brands()
 
-        if existing_brand is not None:
-            if existing_brand["id"] != current_user["brand_id"]:
-                raise PermissionError("Token does not belong to this brand")
-            return existing_brand
+    @staticmethod
+    async def approve_brand(brand_id: int, *, reviewed_by: str | None = None, review_notes: str | None = None):
+        brand = await BrandRepository.update_brand_review(
+            brand_id,
+            status="approved",
+            reviewed_by=reviewed_by or "torchproxy-admin",
+            review_notes=review_notes,
+        )
+        if brand is None:
+            return None
 
-        if current_user["role"] != "admin":
-            raise PermissionError("Only admins can create a new brand")
+        await UserRepository.activate_brand_owner_users(brand_id)
+        return brand
 
-        return await BrandService.create_brand(name, plan)
+    @staticmethod
+    async def reject_brand(brand_id: int, *, reviewed_by: str | None = None, review_notes: str | None = None):
+        return await BrandRepository.update_brand_review(
+            brand_id,
+            status="rejected",
+            reviewed_by=reviewed_by or "torchproxy-admin",
+            review_notes=review_notes,
+        )
+
+    @staticmethod
+    async def request_more_info(brand_id: int, *, reviewed_by: str | None = None, review_notes: str | None = None):
+        return await BrandRepository.update_brand_review(
+            brand_id,
+            status="needs_more_info",
+            reviewed_by=reviewed_by or "torchproxy-admin",
+            review_notes=review_notes,
+        )

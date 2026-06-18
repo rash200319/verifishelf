@@ -16,6 +16,7 @@ AUTH_SECRET = os.getenv("AUTH_SECRET", "dev-secret-change-me")
 DEMO_AUTH_EMAIL = os.getenv("DEMO_AUTH_EMAIL", "admin@verifishelf.local")
 DEMO_AUTH_PASSWORD = os.getenv("DEMO_AUTH_PASSWORD", "admin123")
 AUTH_TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "86400"))
+TORCHPROXY_ADMIN_KEY = os.getenv("TORCHPROXY_ADMIN_KEY", "")
 
 
 def _b64encode_json(payload: dict) -> str:
@@ -82,9 +83,30 @@ def require_auth(authorization: str = Header(default="")) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token format") from exc
 
 
-def require_admin(authorization: str = Header(default="")) -> dict:
+def require_brand_admin(authorization: str = Header(default="")) -> dict:
     payload = require_auth(authorization)
     if payload.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
+    if payload.get("brand_status") != "approved":
+        raise HTTPException(status_code=403, detail="Brand approval required")
+
     return payload
+
+
+def require_torchproxy_admin(
+    x_torchproxy_admin_key: str = Header(default="", alias="X-TorchProxy-Admin-Key"),
+) -> dict:
+    if not TORCHPROXY_ADMIN_KEY:
+        raise HTTPException(status_code=500, detail="TorchProxy admin key is not configured")
+
+    if not x_torchproxy_admin_key or not hmac.compare_digest(x_torchproxy_admin_key, TORCHPROXY_ADMIN_KEY):
+        raise HTTPException(status_code=403, detail="TorchProxy admin access required")
+
+    return {"role": "torchproxy_admin"}
+
+
+def require_admin(
+    x_torchproxy_admin_key: str = Header(default="", alias="X-TorchProxy-Admin-Key"),
+) -> dict:
+    return require_torchproxy_admin(x_torchproxy_admin_key)

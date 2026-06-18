@@ -20,3 +20,8 @@ class AdminUserCreateRequest(BaseModel):
     email: str = Field(min_length=1, max_length=255)
     password: str = Field(min_length=1, max_length=255)
     role: str = Field(default="admin", max_length=50)
+
+
+class BrandReviewRequest(BaseModel):
+    reviewed_by: str | None = Field(default=None, max_length=255)
+    review_notes: str | None = Field(default=None, max_length=4000)

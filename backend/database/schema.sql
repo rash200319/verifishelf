@@ -9,6 +9,13 @@ CREATE TABLE brands (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     plan ENUM('starter','growth','enterprise') DEFAULT 'starter',
+    status ENUM('pending_review','approved','rejected','needs_more_info') DEFAULT 'pending_review',
+    company_name VARCHAR(255),
+    business_url TEXT,
+    onboarding_notes TEXT,
+    review_notes TEXT,
+    reviewed_by VARCHAR(255),
+    reviewed_at TIMESTAMP NULL,
     torch_sub_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -241,6 +248,28 @@ CREATE TABLE weekly_reports (
 );
 
 -- =====================================================
+-- BRAND INVITES
+-- =====================================================
+
+CREATE TABLE brand_invites (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    brand_id INT NOT NULL,
+    email VARCHAR(255),
+    role ENUM('admin','analyst') DEFAULT 'analyst',
+    invite_code_hash VARCHAR(255) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    created_by INT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (brand_id)
+        REFERENCES brands(id)
+        ON DELETE CASCADE
+);
+
+-- =====================================================
 -- CRAWL JOBS
 -- =====================================================
 
@@ -285,6 +314,9 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
 
     role ENUM('admin','analyst') DEFAULT 'admin',
+    is_active BOOLEAN DEFAULT TRUE,
+    is_brand_owner BOOLEAN DEFAULT FALSE,
+    invite_accepted_at TIMESTAMP NULL,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
