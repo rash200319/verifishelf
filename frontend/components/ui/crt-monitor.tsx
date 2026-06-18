@@ -14,17 +14,17 @@ export function CrtMonitor({ className, children, ...props }: CrtMonitorProps) {
       )}
       {...props}
     >
-      <div className="mb-3 flex items-center justify-between px-2 text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[rgba(232,238,244,0.78)]">
+      <div className="mb-3 flex items-center justify-between px-2 text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)]">
         <span className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.8)]" />
           System Operational
         </span>
-        <span className="monospace text-[rgba(232,238,244,0.55)]">Torch Proxy Fabric</span>
+        <span className="monospace text-[var(--foreground-muted)] opacity-75">Torch Proxy Fabric</span>
       </div>
       <div className="machine-screen rounded-[22px] p-4 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
         {children}
       </div>
-      <div className="mt-3 flex justify-between px-3 text-[0.6rem] font-bold uppercase tracking-[0.25em] text-[rgba(45,52,54,0.7)]">
+      <div className="mt-3 flex justify-between px-3 text-[0.6rem] font-bold uppercase tracking-[0.25em] text-[var(--foreground-muted)] opacity-60">
         <span>PWR</span>
         <span>MAP / GREY MARKET / COUNTERFEIT</span>
       </div>

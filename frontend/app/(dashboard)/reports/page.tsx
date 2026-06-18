@@ -125,7 +125,7 @@ export default function ReportsPage() {
             <DataInput value={startDate} onChange={(event) => setStartDate(event.target.value)} type="date" aria-label="Start date" />
             <DataInput value={endDate} onChange={(event) => setEndDate(event.target.value)} type="date" aria-label="End date" />
             <TactileButton type="submit" variant="primary" className="w-full justify-center" disabled={submitting}>
-              {submitting ? "Generating..." : "Generate report"}
+              {submitting ? "Generating..." : "Generate Report"}
             </TactileButton>
           </form>
 

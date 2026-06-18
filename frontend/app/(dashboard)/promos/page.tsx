@@ -138,7 +138,7 @@ export default function PromosPage() {
             <DataInput value={endDate} onChange={(event) => setEndDate(event.target.value)} type="date" required aria-label="End date" />
             <DataInput value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Notes" aria-label="Promo notes" />
             <TactileButton type="submit" variant="primary" className="w-full justify-center" disabled={submitting}>
-              {submitting ? "Saving..." : "Save promo"}
+              {submitting ? "Saving..." : "Save Promo"}
             </TactileButton>
           </form>
 

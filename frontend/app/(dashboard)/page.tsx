@@ -69,20 +69,19 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-5">
-            <h1 className="max-w-3xl text-5xl font-extrabold tracking-[-0.05em] text-[var(--foreground)] drop-shadow-[0_1px_0_#ffffff] sm:text-6xl lg:text-7xl">
-              Sign in to your brand workspace.
-              <span className="block text-[var(--accent)]">Promos, crawl status, and reports live here.</span>
+            <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-700 to-indigo-600 bg-clip-text text-transparent dark:from-white dark:to-indigo-400 leading-tight drop-shadow-[0_1px_0_#ffffff] sm:text-5xl">
+              Sign in to your workspace.
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-[var(--foreground-muted)] sm:text-xl">
-              Use your brand email, password, and brand name to open the workspace. This page is only for brand members.
+              Promos, crawl status, and reports live here. Use your brand email, password, and workspace identifier to gain secure access.
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
             {[
-              { icon: ShieldCheck, title: "Secure access", detail: "Backend token-based login for the brand workspace." },
+              { icon: ShieldCheck, title: "Secure access", detail: "Backend token-based login for secure authorization." },
               { icon: Building2, title: "Brand scoped", detail: "Every session is tied to one brand tenant." },
-              { icon: KeyRound, title: "Direct login", detail: "No extra onboarding flow on this public screen." },
+              { icon: KeyRound, title: "Direct login", detail: "No extra onboarding flow on this public portal." },
             ].map((item) => (
               <BoltedCard key={item.title} className="p-4">
                 <item.icon className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
@@ -97,33 +96,53 @@ export default function LoginPage() {
           <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Sign in</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Enter your workspace details.</h2>
 
-          <form className="mt-6 space-y-3" onSubmit={submitLogin}>
-            <DataInput
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Email address"
-              aria-label="Email address"
-              required
-            />
-            <DataInput
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Password"
-              aria-label="Password"
-              required
-            />
-            <DataInput
-              value={brandName}
-              onChange={(event) => setBrandName(event.target.value)}
-              placeholder="Brand name"
-              aria-label="Brand name"
-              required
-            />
+          <form className="mt-6 space-y-4" onSubmit={submitLogin}>
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="email-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
+                Email Address
+              </label>
+              <DataInput
+                id="email-input"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="Email address"
+                aria-label="Email address"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="password-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
+                Password
+              </label>
+              <DataInput
+                id="password-input"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Password"
+                aria-label="Password"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="brand-name-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
+                Brand Identifier Workspace
+              </label>
+              <DataInput
+                id="brand-name-input"
+                value={brandName}
+                onChange={(event) => setBrandName(event.target.value)}
+                placeholder="Brand name"
+                aria-label="Brand name"
+                required
+              />
+            </div>
 
             <TactileButton type="submit" variant="primary" className="w-full justify-center" disabled={isSubmitting}>
-              {isSubmitting ? "Signing in..." : "Open workspace"}
+              {isSubmitting ? "Signing In..." : "Open Workspace"}
             </TactileButton>
           </form>
 
@@ -133,10 +152,23 @@ export default function LoginPage() {
             </div>
           ) : null}
 
-          <div className="mt-6 rounded-[20px] bg-[rgba(255,255,255,0.64)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.8)]">
-            <p className="text-sm font-bold text-[var(--foreground)]">Backend contract</p>
-            <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">
-              This form uses `POST /auth/login` and stores the returned bearer token locally for the brand dashboard.
+          <div className="mt-6 text-center space-y-2">
+            <a
+              href="#"
+              onClick={(e) => e.preventDefault()}
+              className="text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors duration-200"
+            >
+              Forgot Password?
+            </a>
+            <p className="text-xs text-[var(--foreground-muted)]">
+              Need help accessing your workspace?{" "}
+              <a
+                href="#"
+                onClick={(e) => e.preventDefault()}
+                className="underline hover:text-[var(--accent)] transition-colors duration-200"
+              >
+                Contact support
+              </a>
             </p>
           </div>
         </BoltedCard>

@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { Building2, FileText, LayoutDashboard, LogOut, Radar, Settings2, ShieldCheck, Sparkles } from "lucide-react";
 import { clearSession, loadSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navigationByRole = {
   admin: [
@@ -86,7 +87,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               </div>
             </div>
 
-            <nav className="flex flex-wrap gap-2">
+            <nav className="flex flex-wrap gap-2 items-center">
               {navigation.map((item) => {
                 const active = pathname === item.href;
                 const Icon = item.icon;
@@ -112,6 +113,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 <LogOut className="h-3.5 w-3.5" strokeWidth={2} />
                 Sign out
               </button>
+              <div className="h-6 w-[1px] bg-[var(--muted)] hidden sm:block mx-1" />
+              <ThemeToggle />
             </nav>
           </div>
         </header>
