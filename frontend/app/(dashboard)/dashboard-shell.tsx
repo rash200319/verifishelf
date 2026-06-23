@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { Building2, FileText, LayoutDashboard, LogOut, Radar, Settings2, ShieldCheck, Sparkles } from "lucide-react";
+import { Building2, FileText, LayoutDashboard, LogOut, Radar, Settings2, ShieldCheck, Sparkles, Menu, X } from "lucide-react";
 import { clearSession, loadSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -30,6 +29,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState(loadSession());
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const syncSession = () => setSession(loadSession());
@@ -45,7 +45,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     if (session?.role === "admin") {
       return navigationByRole.admin;
     }
-
     return navigationByRole.analyst;
   }, [session?.role]);
 
@@ -60,77 +59,120 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     router.replace("/");
   };
 
+  const SidebarContent = () => (
+    <>
+      <div className="flex items-center gap-3 px-2 py-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--foreground)] text-[var(--accent-foreground)] shadow-[var(--shadow-sharp)]">
+          <ShieldCheck className="h-5 w-5" strokeWidth={2} />
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <p className="monospace text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[var(--foreground-muted)]">
+            VerifyShelf
+          </p>
+          <p className="truncate text-sm font-bold text-[var(--foreground)]">
+            {session?.brandName ?? session?.brand_name ?? "Workspace"}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-8 flex-1 space-y-2">
+        <p className="px-2 text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider mb-2">
+          Menu
+        </p>
+        <nav className="space-y-1.5">
+          {navigation.map((item) => {
+            const active = pathname === item.href;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-[rgba(79,70,229,0.1)] text-[var(--accent)]"
+                    : "text-[var(--foreground-muted)] hover:bg-[rgba(0,0,0,0.05)] dark:hover:bg-[rgba(255,255,255,0.05)] hover:text-[var(--foreground)]"
+                )}
+              >
+                <Icon className={cn("h-4 w-4", active ? "text-[var(--accent)]" : "text-[var(--foreground-muted)]")} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      <div className="mt-auto border-t border-[rgba(148,163,184,0.2)] pt-4 space-y-4">
+        <div className="flex items-center justify-between px-2">
+          <span className="text-xs font-medium text-[var(--foreground-muted)]">Theme</span>
+          <ThemeToggle />
+        </div>
+        <button
+          onClick={handleSignOut}
+          className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-sm font-medium text-[var(--foreground-muted)] hover:bg-[rgba(239,68,68,0.1)] hover:text-red-500 transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
+      </div>
+    </>
+  );
+
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen bg-[var(--background)]">
       <div className="noise-layer" />
       <div className="grid-overlay" />
 
-      <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-6 pb-10 pt-6 sm:px-8 lg:px-12">
-        <header className="machine-shell sticky top-4 z-30 mb-8 rounded-[var(--radius-2xl)] px-5 py-4 backdrop-blur-sm sm:px-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[var(--foreground)] text-[var(--accent-foreground)] shadow-[var(--shadow-sharp)]">
-                <ShieldCheck className="h-7 w-7" strokeWidth={1.9} />
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Mobile Header */}
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[rgba(148,163,184,0.2)] bg-[var(--background)]/80 p-4 backdrop-blur-md lg:hidden">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-6 w-6 text-[var(--foreground)]" />
+          <span className="font-bold text-[var(--foreground)]">VerifyShelf</span>
+        </div>
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1 text-[var(--foreground)]">
+          {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+      </div>
+
+      <div className="flex min-h-screen">
+        {/* Sidebar */}
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[rgba(148,163,184,0.2)] bg-[var(--panel)] px-4 py-6 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shadow-[var(--shadow-sharp)] lg:shadow-none",
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <SidebarContent />
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 lg:pl-8 lg:pr-8 xl:pr-12 lg:pt-8 relative overflow-y-auto">
+          <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-0">
+            {!session ? (
+              <div className="mb-8 rounded-[var(--radius-lg)] border border-[rgba(255,71,87,0.18)] bg-[rgba(255,255,255,0.56)] px-5 py-4 text-sm text-[var(--foreground-muted)] shadow-[var(--shadow-card)]">
+                No saved session found. Sign in from the home page before using the protected screens.
               </div>
-              <div>
-                <p className="monospace text-[0.68rem] font-bold uppercase tracking-[0.3em] text-[var(--foreground-muted)]">
-                  VerifyShelf
-                </p>
-                <h1 className="text-lg font-extrabold tracking-[-0.03em] text-[var(--foreground)] sm:text-xl">
-                  {session?.brandName ?? session?.brand_name ?? "Role-based operations console"}
-                </h1>
-                <p className="text-sm text-[var(--foreground-muted)]">
-                  {session?.role === "admin"
-                    ? "TorchProxy onboarding and user provisioning"
-                    : "Brand workspace for promos, crawl tracking, and reports"}
-                </p>
-              </div>
+            ) : null}
+
+            <div className="min-h-[calc(100vh-8rem)]">
+              {children}
             </div>
 
-            <nav className="flex flex-wrap gap-2 items-center">
-              {navigation.map((item) => {
-                const active = pathname === item.href;
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "machine-floating inline-flex items-center gap-2 rounded-full px-4 py-2 text-[0.68rem] font-bold uppercase tracking-[0.2em] transition hover:text-[var(--foreground)]",
-                      active ? "bg-[var(--foreground)] text-[var(--accent-foreground)]" : "text-[var(--foreground-muted)]",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" strokeWidth={2} />
-                    {item.label}
-                  </Link>
-                );
-              })}
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="machine-floating inline-flex items-center gap-2 rounded-full px-4 py-2 text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-              >
-                <LogOut className="h-3.5 w-3.5" strokeWidth={2} />
-                Sign out
-              </button>
-              <div className="h-6 w-[1px] bg-[var(--muted)] hidden sm:block mx-1" />
-              <ThemeToggle />
-            </nav>
+            <footer className="mt-12 flex items-center justify-between border-t border-[rgba(148,163,184,0.2)] py-6 text-xs text-[var(--foreground-muted)]">
+              <p className="monospace font-bold uppercase tracking-[0.15em]">VerifyShelf</p>
+              <p>© {new Date().getFullYear()} VerifyShelf Inc.</p>
+            </footer>
           </div>
-        </header>
-
-        {!session ? (
-          <div className="mb-8 rounded-[var(--radius-lg)] border border-[rgba(255,71,87,0.18)] bg-[rgba(255,255,255,0.56)] px-5 py-4 text-sm text-[var(--foreground-muted)] shadow-[var(--shadow-card)]">
-            No saved session found. Sign in from the home page before using the protected screens.
-          </div>
-        ) : null}
-
-        <div className="flex-1">{children}</div>
-
-        <footer className="mt-10 flex flex-col gap-3 border-t border-[rgba(74,85,104,0.12)] pt-6 text-sm text-[var(--foreground-muted)] sm:flex-row sm:items-center sm:justify-between">
-          <p className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em]">VerifyShelf</p>
-          <p>One role gets provisioning. Every brand gets live promos, crawl status, and weekly reporting.</p>
-        </footer>
+        </main>
       </div>
     </div>
   );

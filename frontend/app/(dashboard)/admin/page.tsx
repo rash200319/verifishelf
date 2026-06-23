@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, CheckCircle2, KeyRound, PlusCircle, ShieldCheck, UserPlus } from "lucide-react";
-import { BoltedCard } from "@/components/ui/bolted-card";
+import { Card } from "@/components/ui/card";
 import { DataInput } from "@/components/ui/data-input";
 import { TactileButton } from "@/components/ui/tactile-button";
 import { apiRequest } from "@/lib/api";
@@ -124,7 +124,7 @@ export default function AdminPage() {
   if (!session || session.role !== "admin") {
     return (
       <section className="space-y-6 pb-10">
-        <BoltedCard>
+        <Card>
           <p className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--foreground-muted)]">Access restricted</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">TorchProxy onboarding is admin only.</h2>
           <p className="mt-3 max-w-2xl text-lg leading-8 text-[var(--foreground-muted)]">
@@ -135,7 +135,7 @@ export default function AdminPage() {
               Back to login
             </TactileButton>
           </div>
-        </BoltedCard>
+        </Card>
       </section>
     );
   }
@@ -158,16 +158,16 @@ export default function AdminPage() {
           { icon: Building2, title: "Brand onboarding", detail: "Creates the tenant and its Torch sub-account." },
           { icon: UserPlus, title: "User provisioning", detail: "Adds the first analyst or admin for that brand." },
         ].map((item) => (
-          <BoltedCard key={item.title}>
+          <Card key={item.title}>
             <item.icon className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
             <p className="mt-3 text-sm font-bold text-[var(--foreground)]">{item.title}</p>
             <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{item.detail}</p>
-          </BoltedCard>
+          </Card>
         ))}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <BoltedCard>
+        <Card>
           <div className="flex items-start gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
               <PlusCircle className="h-7 w-7 text-[var(--accent)]" strokeWidth={1.8} />
@@ -199,10 +199,10 @@ export default function AdminPage() {
             </TactileButton>
           </form>
 
-          {brandMessage ? <div className="mt-4 rounded-[18px] bg-[rgba(255,255,255,0.62)] p-4 text-sm leading-6 text-[var(--foreground-muted)]">{brandMessage}</div> : null}
+          {brandMessage ? <div className="mt-4 rounded-[var(--radius-inner)] bg-[var(--bg-inner)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] p-4 text-sm leading-6 text-[var(--foreground-muted)]">{brandMessage}</div> : null}
 
           {brandResult ? (
-            <div className="mt-4 rounded-[18px] border border-[rgba(255,71,87,0.15)] bg-[rgba(255,71,87,0.06)] p-4 text-sm text-[var(--foreground)]">
+            <div className="mt-4 rounded-[var(--radius-inner)] border border-[rgba(239,68,68,0.2)] bg-[var(--status-error-bg)] p-4 text-sm text-[var(--status-error-text)]">
               <p className="font-bold">Latest brand</p>
               <p className="mt-2">ID: {brandResult.id}</p>
               <p>Plan: {brandResult.plan}</p>
@@ -210,9 +210,9 @@ export default function AdminPage() {
               <p>Created: {formatDateTime(brandResult.created_at)}</p>
             </div>
           ) : null}
-        </BoltedCard>
+        </Card>
 
-        <BoltedCard>
+        <Card>
           <div className="flex items-start gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
               <KeyRound className="h-7 w-7 text-[var(--accent)]" strokeWidth={1.8} />
@@ -244,10 +244,10 @@ export default function AdminPage() {
             </TactileButton>
           </form>
 
-          {userMessage ? <div className="mt-4 rounded-[18px] bg-[rgba(255,255,255,0.62)] p-4 text-sm leading-6 text-[var(--foreground-muted)]">{userMessage}</div> : null}
+          {userMessage ? <div className="mt-4 rounded-[var(--radius-inner)] bg-[var(--bg-inner)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] p-4 text-sm leading-6 text-[var(--foreground-muted)]">{userMessage}</div> : null}
 
           {userResult ? (
-            <div className="mt-4 rounded-[18px] border border-[rgba(34,197,94,0.15)] bg-[rgba(34,197,94,0.06)] p-4 text-sm text-[var(--foreground)]">
+            <div className="mt-4 rounded-[var(--radius-inner)] border border-[rgba(34,197,94,0.2)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--status-success-text)]">
               <p className="font-bold">Latest user</p>
               <p className="mt-2">Name: {userResult.full_name}</p>
               <p>Email: {userResult.email}</p>
@@ -256,7 +256,7 @@ export default function AdminPage() {
               <p>Created: {formatDateTime(userResult.created_at)}</p>
             </div>
           ) : null}
-        </BoltedCard>
+        </Card>
       </div>
     </section>
   );

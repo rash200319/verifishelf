@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, KeyRound, ShieldCheck } from "lucide-react";
-import { BoltedCard } from "@/components/ui/bolted-card";
+import { Card } from "@/components/ui/card";
 import { DataInput } from "@/components/ui/data-input";
 import { TactileButton } from "@/components/ui/tactile-button";
 import { apiRequest } from "@/lib/api";
@@ -70,10 +70,10 @@ export default function LoginPage() {
 
           <div className="space-y-5">
             <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-700 to-indigo-600 bg-clip-text text-transparent dark:from-white dark:to-indigo-400 leading-tight drop-shadow-[0_1px_0_#ffffff] sm:text-5xl">
-              Sign in to your workspace.
+              Access your MAP enforcement workspace.
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-[var(--foreground-muted)] sm:text-xl">
-              Promos, crawl status, and reports live here. Use your brand email, password, and workspace identifier to gain secure access.
+              Monitor your product catalog, manage approved promos, and review weekly violation reports.
             </p>
           </div>
 
@@ -83,16 +83,16 @@ export default function LoginPage() {
               { icon: Building2, title: "Brand scoped", detail: "Every session is tied to one brand tenant." },
               { icon: KeyRound, title: "Direct login", detail: "No extra onboarding flow on this public portal." },
             ].map((item) => (
-              <BoltedCard key={item.title} className="p-4">
+              <Card key={item.title} className="p-4">
                 <item.icon className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
                 <p className="mt-3 text-sm font-bold text-[var(--foreground)]">{item.title}</p>
                 <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{item.detail}</p>
-              </BoltedCard>
+              </Card>
             ))}
           </div>
         </div>
 
-        <BoltedCard className="mx-auto w-full max-w-xl">
+        <Card className="mx-auto w-full max-w-xl">
           <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Sign in</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Enter your workspace details.</h2>
 
@@ -147,7 +147,7 @@ export default function LoginPage() {
           </form>
 
           {error ? (
-            <div className="mt-4 rounded-[18px] border border-[rgba(255,71,87,0.2)] bg-[rgba(255,71,87,0.08)] px-4 py-3 text-sm text-[var(--foreground)]">
+            <div className="mt-4 rounded-[var(--radius-inner)] border border-[rgba(239,68,68,0.2)] bg-[var(--status-error-bg)] px-4 py-3 text-sm text-[var(--status-error-text)]">
               {error}
             </div>
           ) : null}
@@ -171,7 +171,7 @@ export default function LoginPage() {
               </a>
             </p>
           </div>
-        </BoltedCard>
+        </Card>
       </div>
     </div>
   );
