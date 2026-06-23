@@ -51,7 +51,7 @@ export default function PromosPage() {
       if (filterProductId.trim()) params.set("product_id", filterProductId.trim());
       if (activeOn.trim()) params.set("active_on", activeOn.trim());
       const queryString = params.toString();
-      const data = await apiRequest<PromoRecord[]>(`/promos${queryString ? \`?\${queryString}\` : ""}`, { session });
+      const data = await apiRequest<PromoRecord[]>("/promos" + (queryString ? "?" + queryString : ""), { session });
       setPromos(data);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load promos");
