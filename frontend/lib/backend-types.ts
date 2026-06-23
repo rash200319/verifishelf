@@ -24,6 +24,20 @@ export interface BrandOnboardResponse {
   };
 }
 
+export interface PendingBrand {
+  id: number;
+  name: string;
+  status: string;
+  company_name: string;
+  business_url: string;
+  onboarding_notes: string;
+  created_at: string;
+}
+
+export interface PendingBrandsResponse {
+  brands: PendingBrand[];
+}
+
 export interface CreateUserResponse {
   message: string;
   user: {

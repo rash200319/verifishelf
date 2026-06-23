@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, CheckCircle2, KeyRound, PlusCircle, ShieldCheck, UserPlus } from "lucide-react";
+import { Building2, CheckCircle2, KeyRound, PlusCircle, ShieldCheck, UserPlus, Check, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DataInput } from "@/components/ui/data-input";
 import { TactileButton } from "@/components/ui/tactile-button";
 import { apiRequest } from "@/lib/api";
-import type { BrandOnboardResponse, CreateUserResponse, SessionData } from "@/lib/backend-types";
+import type { BrandOnboardResponse, CreateUserResponse, SessionData, PendingBrand, PendingBrandsResponse } from "@/lib/backend-types";
 import { clearSession, loadSession } from "@/lib/session";
 import { formatDateTime } from "@/lib/format";
 
@@ -34,6 +34,45 @@ export default function AdminPage() {
   const [userResult, setUserResult] = useState<CreateUserResponse["user"] | null>(null);
   const [userMessage, setUserMessage] = useState("");
   const [userSubmitting, setUserSubmitting] = useState(false);
+
+  const [pendingBrands, setPendingBrands] = useState<PendingBrand[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+
+  useEffect(() => {
+    if (session?.role === "admin") {
+      fetchPendingBrands();
+    }
+  }, [session]);
+
+  const fetchPendingBrands = async () => {
+    if (!session) return;
+    setPendingLoading(true);
+    try {
+      const response = await apiRequest<PendingBrandsResponse>("/admin/brands/pending", { session });
+      setPendingBrands(response.brands || []);
+    } catch (error) {
+      console.error("Failed to fetch pending brands", error);
+    } finally {
+      setPendingLoading(false);
+    }
+  };
+
+  const handleBrandAction = async (brandId: number, action: 'approve' | 'reject') => {
+    if (!session) return;
+    try {
+      await apiRequest(`/admin/brands/${brandId}/${action}`, {
+        method: "POST",
+        session,
+        body: JSON.stringify({
+          reviewed_by: session.email || "admin",
+          review_notes: "Processed via dashboard"
+        })
+      });
+      fetchPendingBrands();
+    } catch (error) {
+      console.error(`Failed to ${action} brand`, error);
+    }
+  };
 
   useEffect(() => {
     const syncSession = () => setSession(loadSession());
@@ -164,6 +203,41 @@ export default function AdminPage() {
             <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{item.detail}</p>
           </Card>
         ))}
+      </div>
+
+      <div className="mb-8">
+        <div className="flex items-start gap-4 mb-6">
+          <div>
+            <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Pending Registrations</p>
+            <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Review brand applications.</h3>
+          </div>
+        </div>
+
+        {pendingLoading ? (
+          <p className="text-sm text-[var(--foreground-muted)]">Loading pending brands...</p>
+        ) : pendingBrands.length === 0 ? (
+          <Card className="p-6 text-center text-sm text-[var(--foreground-muted)]">No pending brand registrations.</Card>
+        ) : (
+          <div className="grid gap-4">
+            {pendingBrands.map((b) => (
+              <Card key={b.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <p className="font-bold text-[var(--foreground)]">{b.name}</p>
+                  <p className="text-sm text-[var(--foreground-muted)]">{b.company_name} - {b.business_url}</p>
+                  <p className="text-xs text-[var(--foreground-muted)] mt-1">Notes: {b.onboarding_notes}</p>
+                </div>
+                <div className="flex gap-2">
+                  <TactileButton variant="primary" onClick={() => handleBrandAction(b.id, 'approve')} className="flex items-center gap-2">
+                    <Check className="h-4 w-4" /> Approve
+                  </TactileButton>
+                  <TactileButton variant="secondary" onClick={() => handleBrandAction(b.id, 'reject')} className="flex items-center gap-2 text-[var(--status-error-text)] hover:text-[var(--status-error-text)] border border-[rgba(239,68,68,0.2)]">
+                    <X className="h-4 w-4" /> Reject
+                  </TactileButton>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
