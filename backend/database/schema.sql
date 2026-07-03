@@ -9,6 +9,13 @@ CREATE TABLE brands (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     plan ENUM('starter','growth','enterprise') DEFAULT 'starter',
+    status ENUM('pending_review','approved','rejected','needs_more_info') DEFAULT 'pending_review',
+    company_name VARCHAR(255),
+    business_url TEXT,
+    onboarding_notes TEXT,
+    review_notes TEXT,
+    reviewed_by VARCHAR(255),
+    reviewed_at TIMESTAMP NULL,
     torch_sub_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -29,7 +36,7 @@ CREATE TABLE products (
         REFERENCES brands(id)
         ON DELETE CASCADE
 );
-
+    ,FOREIGN KEY (brand_marketplace_id)
 -- =====================================================
 -- MARKETPLACES
 -- =====================================================
@@ -41,6 +48,38 @@ CREATE TABLE marketplaces (
     base_url TEXT,
     status ENUM('live','pending') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- BRAND MARKETPLACE SETTINGS
+-- =====================================================
+
+CREATE TABLE brand_marketplaces (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    brand_id INT NOT NULL,
+    marketplace_id INT NOT NULL,
+
+    enabled BOOLEAN DEFAULT TRUE,
+    crawl_frequency_hrs INT NULL,
+    country_code VARCHAR(10) NULL,
+    priority INT DEFAULT 0,
+
+    last_crawled_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_brand_marketplace (brand_id, marketplace_id),
+    KEY idx_brand_marketplaces_brand_id (brand_id),
+    KEY idx_brand_marketplaces_marketplace_id (marketplace_id),
+
+    FOREIGN KEY (brand_id)
+        REFERENCES brands(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (marketplace_id)
+        REFERENCES marketplaces(id)
+        ON DELETE CASCADE
 );
 
 -- =====================================================
@@ -241,6 +280,28 @@ CREATE TABLE weekly_reports (
 );
 
 -- =====================================================
+-- BRAND INVITES
+-- =====================================================
+
+CREATE TABLE brand_invites (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    brand_id INT NOT NULL,
+    email VARCHAR(255),
+    role ENUM('admin','analyst') DEFAULT 'analyst',
+    invite_code_hash VARCHAR(255) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    created_by INT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (brand_id)
+        REFERENCES brands(id)
+        ON DELETE CASCADE
+);
+
+-- =====================================================
 -- CRAWL JOBS
 -- =====================================================
 
@@ -249,6 +310,8 @@ CREATE TABLE crawl_jobs (
 
     brand_id INT NOT NULL,
     marketplace_id INT NOT NULL,
+
+    brand_marketplace_id INT NULL,
 
     status ENUM(
         'queued',
@@ -269,6 +332,10 @@ CREATE TABLE crawl_jobs (
     FOREIGN KEY (marketplace_id)
         REFERENCES marketplaces(id)
         ON DELETE CASCADE
+
+    ,FOREIGN KEY (brand_marketplace_id)
+        REFERENCES brand_marketplaces(id)
+        ON DELETE SET NULL
 );
 
 -- =====================================================
@@ -285,6 +352,9 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
 
     role ENUM('admin','analyst') DEFAULT 'admin',
+    is_active BOOLEAN DEFAULT TRUE,
+    is_brand_owner BOOLEAN DEFAULT FALSE,
+    invite_accepted_at TIMESTAMP NULL,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
