@@ -1,9 +1,11 @@
 from datetime import datetime
 
 from app.core.crawl_schedule import get_crawl_interval_for_plan, is_demo_mode
-from app.core.marketplaces import DARAZ_COUNTRY_CODE, DARAZ_MARKETPLACE_ID
+from app.core.marketplaces import DARAZ_COUNTRY_CODE
 from app.repositories.crawl_job_repository import CrawlJobRepository
 from app.repositories.product_repository import ProductRepository
+from app.core import db
+from aiomysql.cursors import DictCursor
 
 
 class CrawlSchedulerService:
@@ -43,7 +45,37 @@ class CrawlSchedulerService:
         return grouped
 
     @classmethod
-    async def is_brand_due(cls, brand_id: int, plan: str, marketplace_id: int = DARAZ_MARKETPLACE_ID) -> bool:
+    async def _load_enabled_brand_marketplaces(cls) -> list[dict]:
+        if db.mysql_pool is None:
+            raise RuntimeError("MySQL pool is not initialized")
+
+        async with db.mysql_pool.acquire() as conn:
+            async with conn.cursor(DictCursor) as cur:
+                await cur.execute(
+                    """
+                    SELECT
+                        bm.id AS brand_marketplace_id,
+                        bm.brand_id,
+                        bm.marketplace_id,
+                        bm.enabled,
+                        bm.crawl_frequency_hrs,
+                        bm.country_code,
+                        bm.priority,
+                        b.name AS brand_name,
+                        b.plan AS brand_plan,
+                        m.name AS marketplace_name,
+                        m.country_code AS marketplace_country_code
+                    FROM brand_marketplaces bm
+                    INNER JOIN brands b ON b.id = bm.brand_id
+                    INNER JOIN marketplaces m ON m.id = bm.marketplace_id
+                    WHERE bm.enabled = TRUE
+                    ORDER BY bm.brand_id, bm.priority ASC, bm.marketplace_id ASC
+                    """
+                )
+                return await cur.fetchall()
+
+    @classmethod
+    async def is_brand_due(cls, brand_id: int, plan: str, marketplace_id: int) -> bool:
         latest_job = await CrawlJobRepository.get_latest_job(brand_id, marketplace_id)
         if latest_job is None:
             return True
@@ -57,28 +89,36 @@ class CrawlSchedulerService:
 
     @classmethod
     async def dispatch_due_crawls(cls, country_code: str = DARAZ_COUNTRY_CODE) -> dict:
-        targets = await ProductRepository.list_brand_product_targets()
-        grouped = cls._group_targets_by_brand(targets)
+        brand_marketplaces = await cls._load_enabled_brand_marketplaces()
 
         dispatched = []
         skipped = []
 
-        for brand in grouped.values():
-            brand_id = brand["brand_id"]
-            plan = brand["brand_plan"]
+        for setting in brand_marketplaces:
+            brand_id = int(setting["brand_id"])
+            marketplace_id = int(setting["marketplace_id"])
+            plan = setting["brand_plan"]
+            marketplace_country_code = setting.get("country_code") or setting.get("marketplace_country_code") or country_code
 
-            if not await cls.is_brand_due(brand_id, plan):
-                skipped.append({"brand_id": brand_id, "reason": "interval_not_elapsed"})
+            if not await cls.is_brand_due(brand_id, plan, marketplace_id):
+                skipped.append({"brand_id": brand_id, "marketplace_id": marketplace_id, "reason": "interval_not_elapsed"})
                 continue
 
-            job = await CrawlJobRepository.create_job(brand_id, DARAZ_MARKETPLACE_ID, status="queued")
+            job = await CrawlJobRepository.create_job(brand_id, marketplace_id, status="queued")
             dispatched.append(
                 {
                     "brand_id": brand_id,
                     "brand_plan": plan,
+                    "brand_marketplace_id": int(setting["brand_marketplace_id"]),
+                    "marketplace_id": marketplace_id,
+                    "marketplace_name": setting["marketplace_name"],
+                    "country_code": marketplace_country_code,
                     "crawl_job_id": job["id"],
-                    "product_count": len(brand["products"]),
-                    "interval_seconds": get_crawl_interval_for_plan(plan),
+                    "interval_seconds": int(
+                        (setting["crawl_frequency_hrs"] * 3600)
+                        if setting["crawl_frequency_hrs"] is not None
+                        else get_crawl_interval_for_plan(plan)
+                    ),
                 }
             )
 

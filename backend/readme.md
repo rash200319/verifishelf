@@ -38,7 +38,9 @@ Track A covers the **platform and infrastructure layer**: FastAPI API, MySQL sch
 
 **Background jobs:** Celery worker + Beat + Redis broker. Flower dashboard on port `5555`.
 
-**MVP marketplace:** Daraz LK only (`marketplace_id = 1`).
+**Scalable marketplace design:** `marketplaces` is the canonical catalog for all supported marketplaces, and `brand_marketplaces` maps each brand to the marketplaces it actively tracks with its own crawl cadence.
+
+**MVP marketplace:** Daraz LK only is still the default demo path, but the schema now supports 5 marketplaces without changing the job model.
 
 ---
 
@@ -252,8 +254,8 @@ Authorization: Bearer <token>
 
 ### Flow
 1. **Celery Beat** runs `dispatch_due_crawls` every 30 seconds
-2. Scheduler checks each brand's **plan tier** and last `crawl_jobs` record
-3. If interval elapsed → creates `crawl_jobs` row (`queued`) → enqueues `run_brand_crawl`
+2. Scheduler checks each enabled `brand_marketplaces` row and the last `crawl_jobs` record for that brand-marketplace pair
+3. If interval elapsed → creates `crawl_jobs` row (`queued`) for that marketplace → enqueues `run_brand_crawl`
 4. Worker marks job `running`, crawls **all products** for the brand
 5. Per product: `CrawlService.crawl_product()`:
    - Load brand → `get_proxy_config()` (returns `None` for now)
@@ -272,6 +274,10 @@ Authorization: Bearer <token>
 
 Controlled by env vars (see Section 7).
 
+### Per-marketplace cadence
+
+Use `brand_marketplaces.crawl_frequency_hrs` when a brand needs a custom cadence for one marketplace. If it is null, the scheduler falls back to the plan-tier interval.
+
 ### Daraz adapter
 File: `app/adapters/listing_adapter.py`
 
@@ -284,7 +290,19 @@ File: `app/core/proxy.py`
 get_proxy_config(country_code, brand_sub_id) → None
 ```
 
-All scrapers route through this. Returns `None` = direct connection. Torch Proxies integration plugs in here later.
+All scrapers route through this. It now supports country-specific proxy pools from environment variables instead of hardcoded credentials.
+
+Environment format:
+
+```text
+PROXY_POOL_PK=host:port:username:password
+host:port:username:password
+
+PROXY_POOL_IN=host:port:username:password
+host:port:username:password
+```
+
+One proxy is selected deterministically from each pool based on `country_code` and `brand_sub_id`. If a country pool is missing, the function falls back to the placeholder config so the backend still boots.
 
 ---
 
@@ -300,7 +318,8 @@ Seed data: `backend/database/seed_daraz_mvp.sql`
 | `brands` | Tenant brands, plan tier, `torch_sub_id` |
 | `users` | Login accounts |
 | `products` | Brand products with MAP price |
-| `marketplaces` | Daraz (id=1, LK, live) |
+| `marketplaces` | Canonical marketplace catalog (Daraz, Amazon, Flipkart, Lazada, Tokopedia) |
+| `brand_marketplaces` | Per-brand marketplace enablement and crawl cadence |
 | `sellers` | Seller records (FK for listings) |
 | `listings` | Scraped marketplace listings |
 | `price_snapshots` | Append-only price history |

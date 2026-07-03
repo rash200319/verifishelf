@@ -19,6 +19,14 @@ ON DUPLICATE KEY UPDATE
     plan = VALUES(plan),
     torch_sub_id = VALUES(torch_sub_id);
 
+INSERT INTO brand_marketplaces (brand_id, marketplace_id, enabled, crawl_frequency_hrs, country_code, priority)
+VALUES (1, 1, 1, 2, 'LK', 1)
+ON DUPLICATE KEY UPDATE
+    enabled = VALUES(enabled),
+    crawl_frequency_hrs = VALUES(crawl_frequency_hrs),
+    country_code = VALUES(country_code),
+    priority = VALUES(priority);
+
 INSERT INTO products (id, brand_id, name, description, map_price)
 VALUES (1, 1, 'Demo Product', 'MAP monitoring demo product for Daraz LK', 25000.00)
 ON DUPLICATE KEY UPDATE

@@ -14,6 +14,7 @@ TRUNCATE TABLE price_snapshots;
 TRUNCATE TABLE listings;
 TRUNCATE TABLE sellers;
 TRUNCATE TABLE seller_clusters;
+TRUNCATE TABLE brand_marketplaces;
 TRUNCATE TABLE crawl_jobs;
 TRUNCATE TABLE weekly_reports;
 TRUNCATE TABLE promo_windows;
@@ -30,7 +31,10 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- =====================================================
 INSERT INTO marketplaces (id, name, country_code, base_url, status) VALUES
 (1, 'Daraz', 'LK', 'https://www.daraz.lk', 'live'),
-(2, 'Amazon', 'US', 'https://www.amazon.com', 'live');
+(2, 'Amazon', 'US', 'https://www.amazon.com', 'live'),
+(3, 'Flipkart', 'IN', 'https://www.flipkart.com', 'live'),
+(4, 'Lazada', 'SG', 'https://www.lazada.com', 'live'),
+(5, 'Tokopedia', 'ID', 'https://www.tokopedia.com', 'live');
 
 -- =====================================================
 -- 2. BRANDS
@@ -48,6 +52,17 @@ INSERT INTO brands (id, name, plan, status, company_name, business_url, onboardi
 (5, 'Rejected Ltd', 'starter', 'rejected', 'Rejected Ltd', 'https://rejected.com', 'Suspicious registration request', 'Rejected: website URL is inactive and domain registration name does not match business.', 'system_admin', NOW(), 'torch_rejected_ltd'),
 -- Needs More Info Brand: Needs Info Corp
 (6, 'Needs Info Corp', 'growth', 'needs_more_info', 'Needs Info Corp', 'https://needsinfo.com', 'Growth plan request', 'Requested more info: Please provide business registration details.', 'system_admin', NOW(), 'torch_needs_info_corp');
+
+-- =====================================================
+-- 2B. BRAND MARKETPLACE SETTINGS
+-- =====================================================
+INSERT INTO brand_marketplaces (id, brand_id, marketplace_id, enabled, crawl_frequency_hrs, country_code, priority) VALUES
+(1, 1, 1, 1, 2, 'LK', 1),
+(2, 1, 2, 1, 4, 'US', 2),
+(3, 2, 2, 1, 3, 'US', 1),
+(4, 2, 3, 1, 3, 'IN', 2),
+(5, 3, 4, 1, 1, 'SG', 1),
+(6, 3, 5, 1, 1, 'ID', 2);
 
 -- =====================================================
 -- 3. USERS
