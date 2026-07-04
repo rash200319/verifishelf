@@ -155,7 +155,7 @@ class CrawlSchedulerService:
         failed = False
 
         for product in products:
-            result = await CrawlService.crawl_product(brand_id, int(product["id"]), country_code)
+            result = await CrawlService.crawl_product(brand_id, int(product["id"]), country_code, crawl_job_id=crawl_job_id)
             results.append(result)
             if result.get("status") != "ok":
                 failed = True

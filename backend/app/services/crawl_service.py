@@ -1,10 +1,12 @@
 import logging
 
-from app.adapters.listing_adapter import crawl_listings
+from app.adapters.listing_adapter import crawl_listings, CrawlError
 from app.core.proxy import get_proxy_config
 from app.repositories.brand_repository import BrandRepository
+from app.repositories.product_repository import ProductRepository
 from app.repositories.listing_repository import ListingRepository
 from app.repositories.price_snapshot_repository import PriceSnapshotRepository
+from app.repositories.raw_crawl_result_repository import RawCrawlResultRepository
 from app.schemas.crawl import CrawlListing, CrawlResult, NormalizedCrawlListing, NormalizedCrawlResult
 
 
@@ -63,11 +65,12 @@ class CrawlService:
             product_id=int(result["product_id"]),
             country_code=str(result["country_code"]).strip().upper(),
             proxy_config=result.get("proxy_config"),
+            raw_data=result.get("raw_data"),
             listings=normalized_listings,
         )
 
     @staticmethod
-    async def crawl_product(brand_id: int, product_id: int, country_code: str = "LK"):
+    async def crawl_product(brand_id: int, product_id: int, country_code: str = "LK", crawl_job_id: int = 0):
         try:
             brand = await BrandRepository.get_brand_by_id(brand_id)
             if brand is None:
@@ -83,13 +86,38 @@ class CrawlService:
             return CrawlService._failure_result(brand_id, product_id, country_code, "brand_lookup", str(exc))
 
         try:
+            product = await ProductRepository.get_product_for_brand(product_id, brand_id)
+            if product is None:
+                return CrawlService._failure_result(
+                    brand_id,
+                    product_id,
+                    country_code,
+                    "product_lookup",
+                    f"Product {product_id} not found",
+                )
+            product_name = product["name"]
+        except Exception as exc:
+            logger.exception("Product lookup failed for brand_id=%s product_id=%s", brand_id, product_id)
+            return CrawlService._failure_result(brand_id, product_id, country_code, "product_lookup", str(exc))
+
+        try:
             proxy_config = get_proxy_config(country_code, brand["torch_sub_id"])
         except Exception as exc:
             logger.exception("Proxy lookup failed for brand_id=%s product_id=%s", brand_id, product_id)
             return CrawlService._failure_result(brand_id, product_id, country_code, "proxy_lookup", str(exc))
 
         try:
-            raw_result = crawl_listings(brand_id, product_id, country_code, proxy_config)
+            raw_result = await crawl_listings(brand_id, product_id, product_name, country_code, proxy_config)
+        except CrawlError as exc:
+            logger.exception("Adapter call failed for brand_id=%s product_id=%s", brand_id, product_id)
+            return CrawlService._failure_result(
+                brand_id,
+                product_id,
+                country_code,
+                exc.step,
+                str(exc),
+                proxy_config=proxy_config,
+            )
         except Exception as exc:
             logger.exception("Adapter call failed for brand_id=%s product_id=%s", brand_id, product_id)
             return CrawlService._failure_result(
@@ -116,6 +144,18 @@ class CrawlService:
 
         saved_listings = []
         saved_snapshots = []
+
+        if crawl_result.raw_data and crawl_job_id:
+            try:
+                await RawCrawlResultRepository.create_raw_result(
+                    crawl_job_id,
+                    brand_id,
+                    product_id,
+                    crawl_result.raw_data
+                )
+            except Exception as exc:
+                logger.exception("Raw crawl result insert failed for brand_id=%s product_id=%s", brand_id, product_id)
+                # Not failing the whole crawl if raw HTML save fails
 
         for crawl_listing in crawl_result.listings:
             try:

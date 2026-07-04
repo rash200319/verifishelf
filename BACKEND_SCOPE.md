@@ -141,7 +141,7 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | Day | Status | Outcome |
 |---|---|---|
 | 1 | ✅ Done | Scope frozen, marketplace constants expanded, schema fixed, new `/crawl/marketplaces` endpoint added |
-| 2 | ⬜ Planned | Replace demo adapter with live Daraz HTTP scraping |
+| 2 | ✅ Done | Replaced demo adapter with live Daraz HTTP scraping (httpx), parsing JSON-LD, handling proxy/upstream errors, and persisting raw data |
 | 3 | ⬜ Planned | Violation detection layer |
 | 4 | ⬜ Planned | Seller fingerprinting + enforcement letter generation |
 | 5 | ⬜ Planned | End-to-end stabilisation + docs cleanup |

@@ -9,4 +9,4 @@ PyMySQL
 celery
 cryptography
 flower
-
+httpx

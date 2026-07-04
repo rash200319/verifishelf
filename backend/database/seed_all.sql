@@ -15,6 +15,7 @@ TRUNCATE TABLE listings;
 TRUNCATE TABLE sellers;
 TRUNCATE TABLE seller_clusters;
 TRUNCATE TABLE brand_marketplaces;
+TRUNCATE TABLE raw_crawl_results;
 TRUNCATE TABLE crawl_jobs;
 TRUNCATE TABLE weekly_reports;
 TRUNCATE TABLE promo_windows;
