@@ -37,7 +37,16 @@ async def _run_dispatch(country_code: str):
     try:
         dispatch_result = await CrawlSchedulerService.dispatch_due_crawls(country_code)
         for item in dispatch_result["dispatched"]:
-            run_brand_crawl.delay(item["crawl_job_id"], item["brand_id"], country_code)
+            try:
+                run_brand_crawl.delay(item["crawl_job_id"], item["brand_id"], country_code)
+            except Exception as e:
+                logger.exception("Failed to enqueue run_brand_crawl for job_id=%s", item["crawl_job_id"])
+                from app.repositories.crawl_job_repository import CrawlJobRepository
+                from datetime import datetime
+                try:
+                    await CrawlJobRepository.update_job_status(item["crawl_job_id"], "failed", finished_at=datetime.now())
+                except Exception:
+                    logger.exception("Failed to mark job_id=%s as failed after enqueue error", item["crawl_job_id"])
         return dispatch_result
     finally:
         await db.close_mysql()

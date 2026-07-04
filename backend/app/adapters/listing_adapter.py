@@ -1,5 +1,7 @@
 import json
 import re
+from abc import ABC, abstractmethod
+from typing import Optional
 from urllib.parse import quote_plus
 
 import httpx
@@ -11,6 +13,50 @@ from app.core.marketplaces import (
     DEMO_SELLER_ID,
 )
 from app.schemas.crawl import CrawlListing, CrawlResult
+
+
+class MarketplaceAdapter(ABC):
+    """
+    Abstract base class for marketplace adapters.
+    
+    This provides the marketplace abstraction readiness required for Track B.
+    Each marketplace (Daraz, Amazon, Flipkart, Lazada, Tokopedia) will implement
+    this interface with their specific scraping logic.
+    """
+    
+    @abstractmethod
+    async def fetch_listings(
+        self,
+        brand_id: int,
+        product_id: int,
+        product_name: str,
+        country_code: str,
+        proxy_config: Optional[dict] = None,
+    ) -> CrawlResult:
+        """
+        Fetch listings from the marketplace.
+        
+        Args:
+            brand_id: The brand ID
+            product_id: The product ID
+            product_name: The product name to search for
+            country_code: The country code for the marketplace
+            proxy_config: Optional proxy configuration
+            
+        Returns:
+            CrawlResult containing listings and raw data
+        """
+        pass
+    
+    @abstractmethod
+    def get_marketplace_id(self) -> int:
+        """Return the marketplace ID for this adapter."""
+        pass
+    
+    @abstractmethod
+    def get_marketplace_name(self) -> str:
+        """Return the marketplace name for this adapter."""
+        pass
 
 
 JSON_LD_RE = re.compile(r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>', re.IGNORECASE | re.DOTALL)
@@ -93,10 +139,83 @@ class CrawlError(Exception):
         self.step = step
 
 
+class DarazAdapter(MarketplaceAdapter):
+    """
+    Daraz marketplace adapter implementation.
+    
+    This is the concrete implementation for Daraz LK marketplace.
+    Other marketplaces will have their own adapter implementations.
+    """
+    
+    def get_marketplace_id(self) -> int:
+        return ACTIVE_MARKETPLACE_ID
+    
+    def get_marketplace_name(self) -> str:
+        return "Daraz"
+    
+    async def fetch_listings(
+        self,
+        brand_id: int,
+        product_id: int,
+        product_name: str,
+        country_code: str,
+        proxy_config: Optional[dict] = None,
+    ) -> CrawlResult:
+        """
+        Live Daraz scraping adapter.
+        Fetches Daraz search results via httpx and parses JSON-LD.
+        """
+        return await crawl_listings(brand_id, product_id, product_name, country_code, proxy_config)
+
+
+def get_marketplace_adapter(marketplace_id: int) -> MarketplaceAdapter:
+    """
+    Factory function to get the appropriate marketplace adapter.
+    
+    This provides the marketplace abstraction readiness. Currently only
+    Daraz is implemented, but the pattern allows easy addition of other
+    marketplaces (Amazon, Flipkart, Lazada, Tokopedia) in Track B.
+    
+    Args:
+        marketplace_id: The marketplace ID from the marketplaces table
+        
+    Returns:
+        A MarketplaceAdapter instance for the requested marketplace
+        
+    Raises:
+        ValueError: If the marketplace is not supported
+    """
+    # Currently only Daraz (ID 1) is implemented
+    # Track B will add implementations for other marketplaces
+    if marketplace_id == ACTIVE_MARKETPLACE_ID:
+        return DarazAdapter()
+    
+    # For other marketplaces, we could either:
+    # 1. Raise an error (strict mode)
+    # 2. Return a stub adapter that returns demo data
+    # For now, we'll raise to make it clear they're not implemented
+    supported_marketplaces = {
+        ACTIVE_MARKETPLACE_ID: "Daraz",
+        # Add more as they're implemented in Track B:
+        # 2: "Amazon",
+        # 3: "Flipkart",
+        # 4: "Lazada",
+        # 5: "Tokopedia",
+    }
+    
+    raise ValueError(
+        f"Marketplace ID {marketplace_id} is not yet implemented. "
+        f"Supported marketplaces: {list(supported_marketplaces.values())}"
+    )
+
+
 async def crawl_listings(brand_id: int, product_id: int, product_name: str, country_code: str, proxy_config: dict | None) -> CrawlResult:
     """
     Live Daraz scraping adapter.
     Fetches Daraz search results via httpx and parses JSON-LD.
+    
+    This function is maintained for backward compatibility.
+    New code should use DarazAdapter.fetch_listings() instead.
     """
     resolved_country = (country_code or ACTIVE_COUNTRY_CODE).strip().upper()
     

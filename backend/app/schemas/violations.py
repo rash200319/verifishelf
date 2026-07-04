@@ -1,5 +1,7 @@
 from datetime import datetime
-from pydantic import BaseModel
+
+from pydantic import BaseModel, Field
+
 
 class ListingInfo(BaseModel):
     id: int
@@ -11,6 +13,7 @@ class ListingInfo(BaseModel):
     image_url: str | None = None
     currency_code: str
 
+
 class ViolationResponse(BaseModel):
     id: int
     listing_id: int
@@ -20,5 +23,19 @@ class ViolationResponse(BaseModel):
     classifier_confidence: float | None = None
     classifier_type: str | None = None
     status: str
+    severity: str | None = None
     detected_at: datetime
     listing: ListingInfo | None = None
+
+
+class EnforcementLetterResponse(BaseModel):
+    id: int
+    violation_id: int
+    letter_content: str
+    generated_by: str
+    generated_at: datetime
+
+
+class EnforcementGenerateRequest(BaseModel):
+    provider: str = Field(default="template")
+    force_regenerate: bool = False

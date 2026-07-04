@@ -31,7 +31,13 @@ Track A covers the **platform and infrastructure layer**: FastAPI API, MySQL sch
                     ┌──────────────────┼──────────────────┐
                     ▼                  ▼                  ▼
              get_proxy_config   Daraz adapter    listings +
-             (placeholder)      (demo scrape)    price_snapshots
+             (env pool)         (live httpx)     price_snapshots
+                                                      │
+                                               ViolationService
+                                               (MAP check +
+                                                promo override)
+                                                      │
+                                                violations table
 ```
 
 **Layer pattern:** `Routes → Services → Repositories → MySQL`
@@ -250,7 +256,30 @@ Authorization: Bearer <token>
 
 ---
 
-## 5. Crawl Pipeline (Daraz MVP)
+### Violations (auth required)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/violations` | List violations for brand with severity, status, confidence |
+
+---
+
+### Sellers (auth required)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/sellers/clusters` | Heuristic seller clusters + open violation counts |
+
+---
+
+### Enforcement (auth required)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/enforcement/violations/{id}` | Generate enforcement letter from violation context |
+| `GET` | `/enforcement/violations/{id}` | Fetch latest enforcement letter |
+
+---
 
 ### Flow
 1. **Celery Beat** runs `dispatch_due_crawls` every 30 seconds
@@ -258,11 +287,12 @@ Authorization: Bearer <token>
 3. If interval elapsed → creates `crawl_jobs` row (`queued`) for that marketplace → enqueues `run_brand_crawl`
 4. Worker marks job `running`, crawls **all products** for the brand
 5. Per product: `CrawlService.crawl_product()`:
-   - Load brand → `get_proxy_config()` (returns `None` for now)
-   - Daraz adapter returns demo listing data
+   - Load brand → `get_proxy_config()` (returns env pool proxy or `None`)
+   - Daraz adapter fetches live search page via httpx and parses JSON-LD
    - Upsert `listings` row (update if exists)
    - Append `price_snapshots` row
-6. Job marked `completed` or `failed`
+   - `ViolationService.evaluate_listing_price()`: compare vs MAP, check promo override, create/resolve violation
+6. Job marked `completed` or `failed` — any unhandled exception also forces `failed`
 
 ### Plan-tier intervals
 
@@ -406,33 +436,43 @@ backend/
 │   │   ├── health.py              # GET /health
 │   │   ├── auth.py                # POST /auth/login
 │   │   ├── admin.py               # Brand/user onboarding
+│   │   ├── brands.py              # GET /brands/me
 │   │   ├── promos.py              # Promo calendar CRUD
 │   │   ├── reports.py             # Weekly reports
-│   │   └── crawl.py               # Crawl jobs + schedule info
+│   │   ├── crawl.py               # Crawl jobs + schedule info + marketplaces
+│   │   ├── violations.py          # GET /violations
+│   │   ├── sellers.py             # GET /sellers/clusters
+│   │   └── enforcement.py         # Enforcement letter generation + fetch
 │   ├── services/
 │   │   ├── auth_service.py
 │   │   ├── crawl_service.py       # Single-product crawl orchestration
-│   │   ├── crawl_scheduler_service.py  # Plan-tier dispatch
+│   │   ├── crawl_scheduler_service.py  # Plan-tier dispatch (hardened)
 │   │   ├── promo_service.py
-│   │   └── weekly_report_service.py
+│   │   ├── weekly_report_service.py
+│   │   ├── violation_service.py   # MAP check, promo override, severity
+│   │   ├── seller_fingerprint_service.py  # Heuristic cluster matching
+│   │   └── enforcement_service.py # Template letter + GPT-4o stub
 │   ├── repositories/              # Raw SQL data access
 │   ├── schemas/                   # Pydantic request/response models
 │   ├── adapters/
-│   │   └── listing_adapter.py     # Daraz adapter (demo)
+│   │   └── listing_adapter.py     # Daraz adapter (live httpx + JSON-LD)
 │   ├── tasks/
-│   │   └── crawl_tasks.py         # Celery task definitions
+│   │   └── crawl_tasks.py         # Celery task definitions (hardened)
 │   └── core/
 │       ├── auth.py                # Token + password helpers
 │       ├── db.py                  # MySQL + Redis connections
 │       ├── celery.py              # Celery app + Beat schedule
 │       ├── crawl_schedule.py      # Plan-tier interval config
-│       ├── marketplaces.py        # Daraz constants
-│       └── proxy.py               # Proxy abstraction stub
+│       ├── marketplaces.py        # Daraz constants + all marketplace catalog
+│       └── proxy.py               # Proxy abstraction (env pool)
 ├── database/
 │   ├── schema.sql
-│   └── seed_daraz_mvp.sql
+│   ├── seed_daraz_mvp.sql
+│   └── seed_all.sql
+├── scripts/
+│   └── demo_flow.py               # End-to-end integration demo script
 ├── tests/
-├── TRACK_A.md                     # This file
+├── readme.md                      # This file
 └── requirements.txt
 ```
 
@@ -446,7 +486,7 @@ backend/
 | 2 | Celery, Beat, proxy stub, auth | Done |
 | 3 | Crawl pipeline → listings + price_snapshots | Done |
 | 4 | Promo calendar API, weekly report API | Done |
-| 5 | Plan-tier Beat scheduling, Flower, crawl_jobs | Done |
+| 5 | Scheduler hardened, weekly-report fix, demo_flow.py, docs updated | Done |
 
 ---
 

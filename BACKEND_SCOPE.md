@@ -82,13 +82,19 @@ The MVP data model and seed data cover exactly these entities:
 - Live HTTP scrape replacing demo adapter in `listing_adapter.py`
 - Proxy routing via `get_proxy_config()`
 
-### Day 3 additions (planned)
+### Day 3 additions (live)
 - `GET /violations` — list violations with severity/status/confidence
-- Explicit violation detection in `crawl_service.py`
+- Explicit violation detection and promo-override suppression in `crawl_service.py`
 
-### Day 4 additions (planned)
-- `GET /enforcement` — list enforcement letters
-- `POST /enforcement/{violation_id}` — generate enforcement letter
+### Day 4 additions (live)
+- `GET /sellers/clusters` — heuristic seller clusters with open violation counts
+- `POST /enforcement/violations/{id}` — generate enforcement letter
+- `GET /enforcement/violations/{id}` — fetch latest enforcement letter
+
+### Day 5 additions (live)
+- Scheduler and Celery tasks hardened: unhandled exceptions always mark crawl jobs `failed`
+- Weekly report endpoint handles legacy plain-text `report_content` without crashing
+- `scripts/demo_flow.py` added for end-to-end demo validation
 
 ---
 
@@ -142,6 +148,6 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 |---|---|---|
 | 1 | ✅ Done | Scope frozen, marketplace constants expanded, schema fixed, new `/crawl/marketplaces` endpoint added |
 | 2 | ✅ Done | Replaced demo adapter with live Daraz HTTP scraping (httpx), parsing JSON-LD, handling proxy/upstream errors, and persisting raw data |
-| 3 | ⬜ Planned | Violation detection layer |
-| 4 | ⬜ Planned | Seller fingerprinting + enforcement letter generation |
-| 5 | ⬜ Planned | End-to-end stabilisation + docs cleanup |
+| 3 | ✅ Done | Violation detection layer: MAP vs advertised price check, promo override, severity classification, `GET /violations` endpoint |
+| 4 | ✅ Done | Seller fingerprinting (heuristic cluster), enforcement letter generation, `POST /enforcement/violations/{id}`, `GET /enforcement/violations/{id}`, `GET /sellers/clusters` |
+| 5 | ✅ Done | End-to-end stabilisation: scheduler/Celery hardened, weekly report legacy-data fix, `scripts/demo_flow.py` added, docs updated, all 33 tests green |

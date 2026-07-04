@@ -7,10 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.auth import router as auth_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.crawl import router as crawl_router
+from app.api.routes.enforcement import router as enforcement_router
 from app.api.routes.health import router as health_router
 from app.api.routes.brands import router as brands_router
 from app.api.routes.promos import router as promos_router
 from app.api.routes.reports import router as reports_router
+from app.api.routes.sellers import router as sellers_router
 from app.api.routes.violations import router as violations_router
 from app.core import db
 
@@ -69,3 +71,5 @@ app.include_router(promos_router)
 app.include_router(reports_router)
 app.include_router(crawl_router)
 app.include_router(violations_router)
+app.include_router(sellers_router)
+app.include_router(enforcement_router)

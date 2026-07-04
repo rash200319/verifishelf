@@ -68,11 +68,10 @@ class CrawlServiceTestCase(unittest.IsolatedAsyncioTestCase):
         product_repo.get_product_for_brand = AsyncMock(return_value={"name": "Sample Product", "map_price": 100.0})
         raw_result_repo = Mock()
         raw_result_repo.create_raw_result = AsyncMock()
-        violation_repo = Mock()
-        violation_repo.get_open_violation_for_listing = AsyncMock(return_value=None)
-        violation_repo.create_violation = AsyncMock()
-        promo_service = Mock()
-        promo_service.is_below_map_allowed = AsyncMock(return_value=False)
+        seller_fingerprint = Mock()
+        seller_fingerprint.resolve_seller = AsyncMock(return_value={"id": 21, "cluster_id": 1})
+        violation_service = Mock()
+        violation_service.evaluate_listing_price = AsyncMock(return_value={"action": "none"})
 
         with patch("app.services.crawl_service.BrandRepository", brand_repo), \
             patch("app.services.crawl_service.ProductRepository", product_repo), \
@@ -80,8 +79,8 @@ class CrawlServiceTestCase(unittest.IsolatedAsyncioTestCase):
             patch("app.services.crawl_service.crawl_listings", AsyncMock(return_value=raw_result)), \
             patch("app.services.crawl_service.ListingRepository", listing_repo), \
             patch("app.services.crawl_service.RawCrawlResultRepository", raw_result_repo), \
-            patch("app.services.crawl_service.ViolationRepository", violation_repo), \
-            patch("app.services.crawl_service.PromoService", promo_service), \
+            patch("app.services.crawl_service.SellerFingerprintService", seller_fingerprint), \
+            patch("app.services.crawl_service.ViolationService", violation_service), \
             patch("app.services.crawl_service.PriceSnapshotRepository", snapshot_repo):
             result = await CrawlService.crawl_product(brand_id=7, product_id=11, country_code="LK")
 
@@ -135,8 +134,9 @@ class CrawlServiceTestCase(unittest.IsolatedAsyncioTestCase):
         snapshot_repo.create_price_snapshot = AsyncMock()
         raw_result_repo = Mock()
         raw_result_repo.create_raw_result = AsyncMock()
-        violation_repo = Mock()
-        promo_service = Mock()
+        seller_fingerprint = Mock()
+        seller_fingerprint.resolve_seller = AsyncMock(return_value={"id": 21})
+        violation_service = Mock()
 
         with patch("app.services.crawl_service.BrandRepository", brand_repo), \
             patch("app.services.crawl_service.ProductRepository", product_repo), \
@@ -144,8 +144,8 @@ class CrawlServiceTestCase(unittest.IsolatedAsyncioTestCase):
             patch("app.services.crawl_service.crawl_listings", AsyncMock(return_value=raw_result)), \
             patch("app.services.crawl_service.ListingRepository", listing_repo), \
             patch("app.services.crawl_service.RawCrawlResultRepository", raw_result_repo), \
-            patch("app.services.crawl_service.ViolationRepository", violation_repo), \
-            patch("app.services.crawl_service.PromoService", promo_service), \
+            patch("app.services.crawl_service.SellerFingerprintService", seller_fingerprint), \
+            patch("app.services.crawl_service.ViolationService", violation_service), \
             patch("app.services.crawl_service.PriceSnapshotRepository", snapshot_repo):
             result = await CrawlService.crawl_product(brand_id=7, product_id=11, country_code="LK")
 
@@ -210,11 +210,10 @@ class CrawlServiceTestCase(unittest.IsolatedAsyncioTestCase):
         snapshot_repo.create_price_snapshot = AsyncMock(return_value=snapshot_row)
         raw_result_repo = Mock()
         raw_result_repo.create_raw_result = AsyncMock()
-        violation_repo = Mock()
-        violation_repo.get_open_violation_for_listing = AsyncMock(return_value=None)
-        violation_repo.create_violation = AsyncMock()
-        promo_service = Mock()
-        promo_service.is_below_map_allowed = AsyncMock(return_value=False)
+        seller_fingerprint = Mock()
+        seller_fingerprint.resolve_seller = AsyncMock(return_value={"id": 21})
+        violation_service = Mock()
+        violation_service.evaluate_listing_price = AsyncMock(return_value={"action": "none"})
 
         with patch("app.services.crawl_service.BrandRepository", brand_repo), \
             patch("app.services.crawl_service.ProductRepository", product_repo), \
@@ -222,8 +221,8 @@ class CrawlServiceTestCase(unittest.IsolatedAsyncioTestCase):
             patch("app.services.crawl_service.crawl_listings", AsyncMock(return_value=raw_result)), \
             patch("app.services.crawl_service.ListingRepository", listing_repo), \
             patch("app.services.crawl_service.RawCrawlResultRepository", raw_result_repo), \
-            patch("app.services.crawl_service.ViolationRepository", violation_repo), \
-            patch("app.services.crawl_service.PromoService", promo_service), \
+            patch("app.services.crawl_service.SellerFingerprintService", seller_fingerprint), \
+            patch("app.services.crawl_service.ViolationService", violation_service), \
             patch("app.services.crawl_service.PriceSnapshotRepository", snapshot_repo):
             result = await CrawlService.crawl_product(brand_id=7, product_id=11, country_code="LK")
 

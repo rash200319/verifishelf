@@ -67,6 +67,14 @@ The goal is not to build the full proposal in five days. The goal is to make the
 - Update the README, backend docs, and demo script to describe what is actually live.
 - Record the remaining gaps as phase-two items instead of letting them blur the current demo story.
 
+**Day 5 completed:**
+- Weekly report service made robust against legacy plain-text `report_content` rows.
+- `run_brand_crawl` wrapped in a top-level `try/except` so any unhandled error marks the crawl job `failed` instead of leaving it stuck in `running`.
+- Celery dispatch loop wraps each `run_brand_crawl.delay()` call; broker failures mark the queued job `failed` immediately.
+- `scripts/demo_flow.py` added: runs login → crawl → violation check → promo override → weekly report → enforcement letter → cleanup end-to-end against the live database.
+- All 33 unit tests green after refactoring.
+- Docker images rebuilt and all three services restarted successfully.
+
 ## Priority Order
 
 If time slips, do not spread effort across everything evenly. Use this order:
@@ -97,12 +105,29 @@ That means the fastest path is to make the backend output three things reliably:
 
 If the backend can do those three things by day 5, the rest of the proposal becomes a story of extension rather than a story of missing fundamentals.
 
+## Day 4 APIs
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| `GET` | `/sellers/clusters` | Bearer | Heuristic seller clusters + open violation counts |
+| `POST` | `/enforcement/violations/{id}` | Bearer | Generate enforcement letter from violation context |
+| `GET` | `/enforcement/violations/{id}` | Bearer | Fetch latest enforcement letter |
+
 ## Minimum Demo Checklist
 
-- [ ] One live crawl path through proxy abstraction.
-- [ ] One explicit violation record per below-MAP listing.
-- [ ] Promo window override working.
-- [ ] Seller repeat-offender linkage visible.
-- [ ] One enforcement document generated from violation context.
-- [ ] Weekly report still works after the new violation path lands.
-- [ ] README and demo notes describe the real backend, not the aspirational one.
+- [x] One live crawl path through proxy abstraction.
+- [x] One explicit violation record per below-MAP listing.
+- [x] Promo window override working.
+- [x] Seller repeat-offender linkage visible.
+- [x] One enforcement document generated from violation context.
+- [x] Weekly report still works after the new violation path lands.
+- [x] README and demo notes describe the real backend, not the aspirational one.
+
+## Phase-Two Items (Not In This Sprint)
+
+- PostgreSQL / pgvector / TimescaleDB migration.
+- GPT-4o enforcement letter generation (interface is already compatible — swap `build_template_letter` for a model call).
+- Six fully live marketplaces beyond Daraz LK.
+- Full ML-based seller fingerprinting (heuristic rules are live; embeddings column exists in `sellers` table).
+- Billing and checkout integration.
+- Torch Proxies sub-account provisioning (proxy pool config from env vars is wired; `get_proxy_config()` just needs the Torch API call added).
