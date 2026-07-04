@@ -36,7 +36,7 @@ CREATE TABLE products (
         REFERENCES brands(id)
         ON DELETE CASCADE
 );
-    ,FOREIGN KEY (brand_marketplace_id)
+
 -- =====================================================
 -- MARKETPLACES
 -- =====================================================

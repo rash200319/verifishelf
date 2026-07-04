@@ -106,3 +106,24 @@ export interface CrawlScheduleRecord {
   scheduler_tick_seconds: number;
   intervals_seconds: Record<string, number>;
 }
+
+export interface MarketplaceFeaturedItem {
+  title: string;
+  url?: string | null;
+  image_url?: string | null;
+  rating_value?: number | null;
+  rating_count?: number | null;
+}
+
+export interface MarketplacePreviewRecord {
+  marketplace: string;
+  source_file: string;
+  source_url?: string | null;
+  page_title?: string | null;
+  meta_description?: string | null;
+  has_next_page: boolean;
+  has_json_ld: boolean;
+  json_ld_types: string[];
+  verification_hint?: string | null;
+  featured_items: MarketplaceFeaturedItem[];
+}

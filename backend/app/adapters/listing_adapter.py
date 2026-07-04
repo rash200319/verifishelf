@@ -1,8 +1,14 @@
 import re
 
-from app.core.marketplaces import DARAZ_BASE_URL, DARAZ_COUNTRY_CODE, DARAZ_MARKETPLACE_ID, DEMO_SELLER_ID
+from app.core.marketplaces import (
+    ACTIVE_COUNTRY_CODE,
+    ACTIVE_MARKETPLACE_ID,
+    DARAZ_BASE_URL,
+    DEMO_SELLER_ID,
+)
 from app.schemas.crawl import CrawlListing, CrawlResult
 from app.schemas.daraz import ScrapedProduct
+
 
 
 def _parse_price(price_raw: str) -> float:
@@ -26,7 +32,7 @@ def crawl_listings(brand_id: int, product_id: int, country_code: str, proxy_conf
     while this interface stays the same.
     """
     _ = proxy_config
-    resolved_country = (country_code or DARAZ_COUNTRY_CODE).strip().upper()
+    resolved_country = (country_code or ACTIVE_COUNTRY_CODE).strip().upper()
 
     # Example scraped product (Track B replaces this with live Daraz scraping)
     scraped = ScrapedProduct(
@@ -48,7 +54,7 @@ def crawl_listings(brand_id: int, product_id: int, country_code: str, proxy_conf
         product_id=int(scraped.product_id),
         seller_id=int(scraped.variant_id or DEMO_SELLER_ID),
         seller_identity=scraped.brand or f"daraz-seller-{scraped.variant_id}",
-        marketplace_id=DARAZ_MARKETPLACE_ID,
+        marketplace_id=ACTIVE_MARKETPLACE_ID,
         seller_name=scraped.brand or "Daraz Seller",
         listing_title=scraped.title,
         listing_url=f"{DARAZ_BASE_URL}/products/{scraped.product_id}",
