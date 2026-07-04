@@ -7,7 +7,10 @@ from app.repositories.product_repository import ProductRepository
 from app.repositories.listing_repository import ListingRepository
 from app.repositories.price_snapshot_repository import PriceSnapshotRepository
 from app.repositories.raw_crawl_result_repository import RawCrawlResultRepository
+from app.repositories.violation_repository import ViolationRepository
 from app.schemas.crawl import CrawlListing, CrawlResult, NormalizedCrawlListing, NormalizedCrawlResult
+from app.services.promo_service import PromoService
+from datetime import date
 
 
 logger = logging.getLogger(__name__)
@@ -96,6 +99,7 @@ class CrawlService:
                     f"Product {product_id} not found",
                 )
             product_name = product["name"]
+            map_price = float(product["map_price"])
         except Exception as exc:
             logger.exception("Product lookup failed for brand_id=%s product_id=%s", brand_id, product_id)
             return CrawlService._failure_result(brand_id, product_id, country_code, "product_lookup", str(exc))
@@ -216,6 +220,35 @@ class CrawlService:
                     listings=saved_listings + [listing],
                     price_snapshots=saved_snapshots,
                 )
+
+            try:
+                advertised_price = crawl_listing.advertised_price
+                if advertised_price < map_price:
+                    is_allowed = await PromoService.is_below_map_allowed(
+                        brand_id, product_id, crawl_listing.marketplace_id, date.today()
+                    )
+                    if not is_allowed:
+                        existing_violation = await ViolationRepository.get_open_violation_for_listing(listing["id"])
+                        if not existing_violation:
+                            price_delta_pct = ((map_price - advertised_price) / map_price) * 100
+                            await ViolationRepository.create_violation(
+                                listing_id=listing["id"],
+                                map_price=map_price,
+                                advertised_price=advertised_price,
+                                price_delta_pct=price_delta_pct,
+                                classifier_confidence=0.99,
+                                classifier_type='heuristic'
+                            )
+                    else:
+                        existing_violation = await ViolationRepository.get_open_violation_for_listing(listing["id"])
+                        if existing_violation:
+                            await ViolationRepository.update_violation_status(existing_violation["id"], "resolved")
+                else:
+                    existing_violation = await ViolationRepository.get_open_violation_for_listing(listing["id"])
+                    if existing_violation:
+                        await ViolationRepository.update_violation_status(existing_violation["id"], "resolved")
+            except Exception as exc:
+                logger.exception("Violation detection failed for listing %s", listing["id"])
 
             saved_listings.append(listing)
             saved_snapshots.append(snapshot)
