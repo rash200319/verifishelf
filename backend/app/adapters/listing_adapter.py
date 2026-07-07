@@ -9,8 +9,8 @@ import httpx
 from app.core.marketplaces import (
     ACTIVE_COUNTRY_CODE,
     ACTIVE_MARKETPLACE_ID,
-    DARAZ_BASE_URL,
     DEMO_SELLER_ID,
+    resolve_daraz_market,
 )
 from app.schemas.crawl import CrawlListing, CrawlResult
 
@@ -59,75 +59,108 @@ class MarketplaceAdapter(ABC):
         pass
 
 
-JSON_LD_RE = re.compile(r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>', re.IGNORECASE | re.DOTALL)
+_PRICE_NUMBER_RE = re.compile(r"\d+(?:\.\d+)?")
 
 
-def _parse_price(price_raw: str) -> float:
+def _parse_price(price_raw) -> float:
     if not price_raw:
         return 0.0
-    digits = re.sub(r"[^0-9]", "", price_raw)
+    # Strip thousands separators first so "21,058" -> "21058" rather than
+    # being cut at the comma; then pull out the first numeric run. A naive
+    # "strip everything but digits/dots" breaks on "Rs. 21,058" (the dot in
+    # "Rs." survives and shifts the decimal point) -- match a real number
+    # pattern instead.
+    text = str(price_raw).replace(",", "")
+    match = _PRICE_NUMBER_RE.search(text)
+    if not match:
+        return 0.0
     try:
-        return float(digits) if digits else 0.0
+        return float(match.group())
     except ValueError:
         return 0.0
 
 
-def _extract_listings_from_json_ld(html: str, product_id: int, product_name: str, resolved_country: str) -> list[CrawlListing]:
-    listings = []
-    seller_counter = 1
+def _normalize_item_url(item_url: str | None, base_url: str, fallback: str) -> str:
+    if not item_url:
+        return fallback
+    if item_url.startswith("//"):
+        return f"https:{item_url}"
+    if item_url.startswith("/"):
+        return f"{base_url}{item_url}"
+    return item_url
 
-    for block in JSON_LD_RE.findall(html):
-        try:
-            payload = json.loads(block)
-        except json.JSONDecodeError:
+
+def _extract_listings_from_ajax_json(
+    payload: dict,
+    product_id: int,
+    base_url: str,
+    default_currency: str,
+    fallback_url: str,
+) -> list[CrawlListing]:
+    """
+    Parse Daraz's real search-results payload (the same JSON its own frontend
+    fetches from `{base_url}/catalog/?ajax=true&isFirstRequest=true&page=1&q=...`,
+    under `mods.listItems`).
+
+    This replaces JSON-LD parsing: a plain HTTP GET of the search page returns
+    only an empty client-rendered SPA shell with no JSON-LD or price data at
+    all (confirmed against a real Daraz PK response). The ajax endpoint is the
+    actual, unauthenticated, same-domain JSON API Daraz's own React frontend
+    calls to render results -- it requires no signing/session and returns
+    real prices, seller names, and seller IDs per listing.
+    """
+    listings: list[CrawlListing] = []
+
+    list_items = payload.get("mods", {}).get("listItems") if isinstance(payload.get("mods"), dict) else None
+    if not isinstance(list_items, list):
+        return listings
+
+    for item in list_items:
+        if not isinstance(item, dict):
             continue
 
-        payloads = payload if isinstance(payload, list) else [payload]
-        for item in payloads:
-            if not isinstance(item, dict):
-                continue
+        title = str(item.get("name") or "").strip()
+        if not title:
+            continue
 
-            # We can extract from "ItemList"
-            if item.get("@type") == "ItemList":
-                for entry in item.get("itemListElement", []):
-                    if not isinstance(entry, dict):
-                        continue
-                    entry_item = entry.get("item") if isinstance(entry.get("item"), dict) else {}
-                    title = str(entry_item.get("name") or "").strip()
-                    if not title:
-                        continue
-                    
-                    offers = entry_item.get("offers", {})
-                    if isinstance(offers, dict):
-                        price = float(offers.get("price", 0.0))
-                        currency = offers.get("priceCurrency", "LKR")
-                    else:
-                        price = 0.0
-                        currency = "LKR"
+        raw_seller_id = item.get("sellerId")
+        try:
+            seller_id = int(raw_seller_id)
+        except (TypeError, ValueError):
+            seller_id = DEMO_SELLER_ID
 
-                    # Map to CrawlListing
-                    listings.append(
-                        CrawlListing(
-                            product_id=product_id,
-                            seller_id=DEMO_SELLER_ID + seller_counter,
-                            seller_identity=f"daraz-seller-{seller_counter}",
-                            marketplace_id=ACTIVE_MARKETPLACE_ID,
-                            seller_name=entry_item.get("brand", {}).get("name") if isinstance(entry_item.get("brand"), dict) else "Daraz Seller",
-                            listing_title=title,
-                            listing_url=str(entry_item.get("url", f"{DARAZ_BASE_URL}/catalog/?q={quote_plus(product_name)}")),
-                            image_url=str(entry_item.get("image")) if entry_item.get("image") else None,
-                            advertised_price=price,
-                            currency_code=currency,
-                        )
-                    )
-                    seller_counter += 1
+        price = _parse_price(item.get("price")) or _parse_price(item.get("priceShow"))
+
+        listings.append(
+            CrawlListing(
+                product_id=product_id,
+                seller_id=seller_id,
+                seller_identity=f"daraz-seller-{raw_seller_id}" if raw_seller_id else None,
+                marketplace_id=ACTIVE_MARKETPLACE_ID,
+                seller_name=str(item.get("sellerName") or "Daraz Seller").strip(),
+                listing_title=title,
+                listing_url=_normalize_item_url(item.get("itemUrl"), base_url, fallback_url),
+                image_url=str(item.get("image")) if item.get("image") else None,
+                advertised_price=price,
+                currency_code=default_currency,
+            )
+        )
 
     return listings
 
 
 def _verification_hint(text: str) -> str | None:
+    """
+    Detect an anti-bot block/verification wall in the response body.
+
+    Note: a bare "verification" substring is too broad -- Daraz's normal,
+    unblocked pages include a `<meta name="google-site-verification">` tag,
+    which false-positived every real page as "blocked" (confirmed against a
+    real Daraz PK response during the Day 1 proxy smoke test). Only specific,
+    known block-page phrases are checked here.
+    """
     lowered = text.lower()
-    for hint in ["human verification", "captcha", "verification", "please enable javascript", "access denied"]:
+    for hint in ["human verification", "captcha", "please enable javascript", "access denied", "unusual traffic"]:
         if hint in lowered:
             return hint
     return None
@@ -163,7 +196,7 @@ class DarazAdapter(MarketplaceAdapter):
     ) -> CrawlResult:
         """
         Live Daraz scraping adapter.
-        Fetches Daraz search results via httpx and parses JSON-LD.
+        Fetches Daraz search results via httpx against the real ajax search API.
         """
         return await crawl_listings(brand_id, product_id, product_name, country_code, proxy_config)
 
@@ -212,13 +245,17 @@ def get_marketplace_adapter(marketplace_id: int) -> MarketplaceAdapter:
 async def crawl_listings(brand_id: int, product_id: int, product_name: str, country_code: str, proxy_config: dict | None) -> CrawlResult:
     """
     Live Daraz scraping adapter.
-    Fetches Daraz search results via httpx and parses JSON-LD.
-    
+    Fetches Daraz search results via httpx against the real ajax search API
+    (see _extract_listings_from_ajax_json for why this replaced JSON-LD parsing).
+
     This function is maintained for backward compatibility.
     New code should use DarazAdapter.fetch_listings() instead.
     """
     resolved_country = (country_code or ACTIVE_COUNTRY_CODE).strip().upper()
-    
+    market = resolve_daraz_market(resolved_country)
+    base_url = market["base_url"]
+    default_currency = market["currency"]
+
     proxies = None
     if proxy_config:
         # e.g., http://username:password@host:port
@@ -229,17 +266,25 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
             proxy_url = f"http://{auth}@{host}:{port}" if auth else f"http://{host}:{port}"
             proxies = {"http://": proxy_url, "https://": proxy_url}
 
-    search_url = f"{DARAZ_BASE_URL}/catalog/?q={quote_plus(product_name)}"
-    
+    search_url = f"{base_url}/catalog/?q={quote_plus(product_name)}"
+    # Daraz's own React frontend fetches results from this same-domain ajax
+    # endpoint (discovered by capturing the real frontend's network calls
+    # through a headless browser) -- no signing/session required, and it
+    # returns real prices + seller identities, unlike the SSR shell at
+    # `search_url` which contains no listing data at all pre-hydration.
+    ajax_url = f"{base_url}/catalog/?ajax=true&isFirstRequest=true&page=1&q={quote_plus(product_name)}"
+
     try:
         async with httpx.AsyncClient(proxies=proxies, timeout=15.0) as client:
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
                 "Accept-Language": "en-US,en;q=0.9",
+                "Accept": "application/json, text/plain, */*",
+                "X-Requested-With": "XMLHttpRequest",
             }
-            response = await client.get(search_url, headers=headers)
+            response = await client.get(ajax_url, headers=headers)
             response.raise_for_status()
-            html = response.text
+            raw_body = response.text
     except httpx.ProxyError as exc:
         raise CrawlError("proxy_error", str(exc)) from exc
     except httpx.TimeoutException as exc:
@@ -251,18 +296,25 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
     except Exception as exc:
         raise CrawlError("request_failed", str(exc)) from exc
 
-    # Check for upstream blocks in HTML
-    block_hint = _verification_hint(html)
+    # Check for upstream blocks in the raw body
+    block_hint = _verification_hint(raw_body)
     if block_hint:
         raise CrawlError("upstream_blocked", f"Hit block page: {block_hint}")
 
     try:
-        listings = _extract_listings_from_json_ld(html, product_id, product_name, resolved_country)
+        payload = json.loads(raw_body)
+        listings = _extract_listings_from_ajax_json(
+            payload, product_id, base_url, default_currency, fallback_url=search_url
+        )
+    except json.JSONDecodeError:
+        # Not JSON (e.g. an HTML block/error page that wasn't caught above) --
+        # fall through to the synthetic fallback listing below.
+        listings = []
     except Exception as exc:
         raise CrawlError("parse_error", str(exc)) from exc
 
     # If no listings found, create a fallback listing just like demo adapter to keep tests/demo passing,
-    # or raise an error if strict. Let's create a demo fallback if JSON-LD parsing fails.
+    # or raise an error if strict. Let's create a demo fallback if the ajax parse yields nothing.
     if not listings:
         advertised_price = _parse_price("Rs. 25,000")
         listings = [
@@ -276,7 +328,7 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
                 listing_url=search_url,
                 image_url=None,
                 advertised_price=advertised_price,
-                currency_code="LKR",
+                currency_code=default_currency,
             )
         ]
 
@@ -285,6 +337,6 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
         product_id=product_id,
         country_code=country_code,
         proxy_config=proxy_config,
-        raw_data=html,
+        raw_data=raw_body,
         listings=listings,
     )

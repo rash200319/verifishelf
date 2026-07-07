@@ -42,6 +42,30 @@ ACTIVE_MARKETPLACE_ID   = DARAZ_MARKETPLACE_ID
 ACTIVE_MARKETPLACE_NAME = DARAZ_MARKETPLACE_NAME
 ACTIVE_COUNTRY_CODE     = DARAZ_COUNTRY_CODE
 
+# ─── Daraz country-domain variants ────────────────────────────────────────────
+# Daraz operates the same platform under separate country domains. The
+# marketplace row (id=1) stays a single "Daraz" entry; which country's domain
+# gets crawled for a given brand is driven by brand_marketplaces.country_code
+# (see migration 0003) and resolved here.
+#
+# Real residential proxy pools only exist today for PK (see PROXY_POOL_PK in
+# .env) -- LK has no matching pool yet, so a brand configured for LK will fail
+# proxy_lookup until an LK pool is added. PK is the live proxy-routed target.
+DARAZ_COUNTRY_DOMAINS = {
+    "LK": {"base_url": "https://www.daraz.lk", "currency": "LKR"},
+    "PK": {"base_url": "https://www.daraz.pk", "currency": "PKR"},
+}
+
+
+def resolve_daraz_market(country_code: str | None) -> dict:
+    """Resolve the Daraz base_url/currency for a given country code.
+
+    Falls back to the LK domain/currency for any country without a
+    registered Daraz variant, since LK is the platform's original config.
+    """
+    key = (country_code or DARAZ_COUNTRY_CODE).strip().upper()
+    return DARAZ_COUNTRY_DOMAINS.get(key, DARAZ_COUNTRY_DOMAINS["LK"])
+
 # ─── Full registry (all 5 marketplaces) ──────────────────────────────────────
 # Used by GET /crawl/marketplaces to return the configured marketplace list.
 ALL_MARKETPLACES = [

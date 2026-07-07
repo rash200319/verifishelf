@@ -10,3 +10,7 @@ celery
 cryptography
 flower
 httpx
+xgboost
+scikit-learn
+numpy
+playwright

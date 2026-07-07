@@ -4,6 +4,20 @@ import hashlib
 import os
 
 
+class ProxyConfigError(Exception):
+    """Raised when no real proxy pool is configured for a requested country.
+
+    Previously this case silently returned a placeholder proxy dict, which
+    let crawls "succeed" against a proxy that was never actually reachable.
+    Failing loudly here means a misconfigured country shows up as a clear
+    no_proxy_configured crawl failure instead of a masked one.
+    """
+
+    def __init__(self, country_code: str):
+        self.country_code = country_code
+        super().__init__(f"No proxy pool configured for country '{country_code}'")
+
+
 def _parse_proxy_pool(raw_value: str | None) -> list[dict]:
     if not raw_value:
         return []
@@ -42,7 +56,19 @@ def _pick_proxy(proxies: list[dict], country_code: str, brand_sub_id: str) -> di
     selected["country"] = country_code
     return selected
 
-def get_proxy_config(country_code: str, brand_sub_id: str) -> dict | None:
+# Maps a resolved country key to its residential pool env var. ISP pools are
+# not available yet (residential only) -- once added, extend each entry to
+# e.g. {"residential": "PROXY_POOL_PK", "isp": "PROXY_POOL_PK_ISP"} and prefer
+# "isp" here when present.
+_COUNTRY_POOL_ENV = {
+    "PK": "PROXY_POOL_PK",
+    "PAKISTAN": "PROXY_POOL_PK",
+    "IN": "PROXY_POOL_IN",
+    "INDIA": "PROXY_POOL_IN",
+}
+
+
+def get_proxy_config(country_code: str, brand_sub_id: str) -> dict:
     """
     Country-aware proxy selection.
 
@@ -52,25 +78,18 @@ def get_proxy_config(country_code: str, brand_sub_id: str) -> dict | None:
 
     Each variable should contain one proxy per line in the format:
     host:port:username:password
+
+    Raises ProxyConfigError if no real pool is configured for the country --
+    there is no placeholder/fake fallback, since a crawl "succeeding" through
+    a fake proxy is worse than a crawl that fails visibly at proxy_lookup.
     """
 
     country_key = (country_code or "").strip().upper()
-    if country_key in {"PK", "PAKISTAN"}:
-        proxies = _parse_proxy_pool(os.getenv("PROXY_POOL_PK"))
-        selected = _pick_proxy(proxies, "PK", brand_sub_id)
+    env_var = _COUNTRY_POOL_ENV.get(country_key)
+    if env_var:
+        proxies = _parse_proxy_pool(os.getenv(env_var))
+        selected = _pick_proxy(proxies, country_key, brand_sub_id)
         if selected is not None:
             return selected
 
-    if country_key in {"IN", "INDIA"}:
-        proxies = _parse_proxy_pool(os.getenv("PROXY_POOL_IN"))
-        selected = _pick_proxy(proxies, "IN", brand_sub_id)
-        if selected is not None:
-            return selected
-
-    return {
-        "type": "residential",
-        "host": "RESIDENTIAL_PROXY_HOST_PLACEHOLDER",
-        "port": "RESIDENTIAL_PROXY_PORT_PLACEHOLDER",
-        "auth": "RESIDENTIAL_PROXY_USER:RESIDENTIAL_PROXY_PASS",
-        "country": country_key or country_code,
-    }
+    raise ProxyConfigError(country_key or country_code)

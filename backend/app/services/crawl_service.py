@@ -1,7 +1,7 @@
 import logging
 
 from app.adapters.listing_adapter import crawl_listings, CrawlError
-from app.core.proxy import get_proxy_config
+from app.core.proxy import get_proxy_config, ProxyConfigError
 from app.repositories.brand_repository import BrandRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.listing_repository import ListingRepository
@@ -137,6 +137,12 @@ class CrawlService:
 
         try:
             proxy_config = get_proxy_config(country_code, brand["torch_sub_id"])
+        except ProxyConfigError as exc:
+            logger.warning(
+                "No proxy pool configured for brand_id=%s product_id=%s country=%s",
+                brand_id, product_id, country_code,
+            )
+            return CrawlService._failure_result(brand_id, product_id, country_code, "no_proxy_configured", str(exc))
         except Exception as exc:
             logger.exception("Proxy lookup failed for brand_id=%s product_id=%s", brand_id, product_id)
             return CrawlService._failure_result(brand_id, product_id, country_code, "proxy_lookup", str(exc))
