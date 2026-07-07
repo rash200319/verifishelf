@@ -88,8 +88,9 @@ def require_brand_admin(authorization: str = Header(default="")) -> dict:
     if payload.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    if payload.get("brand_status") != "approved":
-        raise HTTPException(status_code=403, detail="Brand approval required")
+    # Allow approved brands OR pending brands to complete onboarding
+    if payload.get("brand_status") not in ("approved", "pending_review"):
+        raise HTTPException(status_code=403, detail="Brand must be approved or in review")
 
     return payload
 

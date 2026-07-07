@@ -6,7 +6,6 @@ export interface SessionData {
   user_id: number;
   brand_id: number;
   brand_name: string;
-  brandName?: string;
   role: AuthRole | string;
   email?: string;
 }

@@ -14,7 +14,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("admin@verifishelf.local");
   const [password, setPassword] = useState("admin123");
-  const [brandName, setBrandName] = useState("Demo Brand");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,14 +35,12 @@ export default function LoginPage() {
         body: JSON.stringify({
           email,
           password,
-          brand_name: brandName.trim() ? brandName.trim() : undefined,
         }),
       });
 
       const session: SessionData = {
         ...response,
         email,
-        brandName: response.brand_name,
       };
 
       saveSession(session);
@@ -123,20 +120,6 @@ export default function LoginPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Password"
                 aria-label="Password"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5 text-left">
-              <label htmlFor="brand-name-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
-                Brand Identifier Workspace
-              </label>
-              <DataInput
-                id="brand-name-input"
-                value={brandName}
-                onChange={(event) => setBrandName(event.target.value)}
-                placeholder="Brand name"
-                aria-label="Brand name"
                 required
               />
             </div>
