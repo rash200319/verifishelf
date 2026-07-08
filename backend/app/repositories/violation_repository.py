@@ -66,6 +66,29 @@ class ViolationRepository:
                 )
 
     @staticmethod
+    async def count_violations_for_seller(seller_id: int) -> int:
+        """
+        Count of this seller's prior violations (any status), across all
+        their listings -- used as a real-time feature for the ML classifier
+        (a repeat offender scores differently than a first-time flag).
+        """
+        if db.mysql_pool is None:
+            raise RuntimeError("MySQL pool is not initialized")
+        async with db.mysql_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(
+                    """
+                    SELECT COUNT(*) AS violation_count
+                    FROM violations v
+                    JOIN listings l ON v.listing_id = l.id
+                    WHERE l.seller_id = %s
+                    """,
+                    (seller_id,),
+                )
+                row = await cur.fetchone()
+                return int(row["violation_count"]) if row else 0
+
+    @staticmethod
     async def list_violations_for_brand(brand_id: int):
         if db.mysql_pool is None:
             raise RuntimeError("MySQL pool is not initialized")
@@ -90,10 +113,13 @@ class ViolationRepository:
                         l.listing_title,
                         l.listing_url,
                         l.image_url,
-                        l.currency_code
+                        l.currency_code,
+                        s.seller_name,
+                        p.name as product_name
                     FROM violations v
                     JOIN listings l ON v.listing_id = l.id
                     JOIN products p ON l.product_id = p.id
+                    JOIN sellers s ON l.seller_id = s.id
                     WHERE p.brand_id = %s
                     ORDER BY v.detected_at DESC
                     """,
@@ -121,7 +147,9 @@ class ViolationRepository:
                             "listing_title": row["listing_title"],
                             "listing_url": row["listing_url"],
                             "image_url": row["image_url"],
-                            "currency_code": row["currency_code"]
+                            "currency_code": row["currency_code"],
+                            "seller_name": row["seller_name"],
+                            "product_name": row["product_name"],
                         }
                     }
                     violations.append(v_dict)

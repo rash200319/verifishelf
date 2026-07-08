@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { Building2, FileText, LayoutDashboard, LogOut, Radar, Settings2, ShieldCheck, Sparkles, Menu, X, Users } from "lucide-react";
+import { FileText, LayoutDashboard, LogOut, Radar, Settings2, ShieldAlert, ShieldCheck, Sparkles, Menu, X, Users } from "lucide-react";
 import { clearSession, loadSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -12,6 +12,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const navigationByRole = {
   admin: [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+    { href: "/violations", label: "Violations", icon: ShieldAlert },
     { href: "/admin", label: "TorchProxy", icon: Settings2 },
     { href: "/settings/invites", label: "Invites", icon: Users },
     { href: "/promos", label: "Promos", icon: Sparkles },
@@ -20,6 +21,7 @@ const navigationByRole = {
   ],
   analyst: [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+    { href: "/violations", label: "Violations", icon: ShieldAlert },
     { href: "/promos", label: "Promos", icon: Sparkles },
     { href: "/crawl", label: "Crawl Ops", icon: Radar },
     { href: "/reports", label: "Reports", icon: FileText },

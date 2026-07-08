@@ -39,4 +39,5 @@ class WeeklyReportResponse(BaseModel):
     summary: WeeklyReportSummary
     products: list[WeeklyReportProductStat]
     narrative: str
+    narrative_source: str = "rule_based"
     generated_at: str

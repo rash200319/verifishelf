@@ -3,9 +3,19 @@ from datetime import date, timedelta
 
 from app.repositories.brand_repository import BrandRepository
 from app.repositories.weekly_report_repository import WeeklyReportRepository
+from app.services import claude_client
 
 
 class WeeklyReportService:
+    NARRATIVE_SYSTEM_PROMPT = (
+        "You are a brand-protection analyst writing a weekly MAP-monitoring "
+        "report for a client brand. Write 2-4 short paragraphs of plain-English "
+        "narrative summarizing the week's monitoring activity, referencing only "
+        "the numbers and product names given -- do not invent figures, trends, "
+        "or products not present in the data. Be direct and factual, not "
+        "salesy. Output only the narrative text, no headers or preamble."
+    )
+
     @staticmethod
     def _default_date_range():
         end_date = date.today()
@@ -17,6 +27,18 @@ class WeeklyReportService:
         if value is None:
             return None
         return float(value)
+
+    @classmethod
+    def _build_narrative_with_claude(
+        cls, brand_name: str, start_date: date, end_date: date, summary: dict, products: list
+    ) -> str | None:
+        prompt = (
+            f"Brand: {brand_name}\n"
+            f"Period: {start_date.isoformat()} to {end_date.isoformat()}\n"
+            f"Summary: {json.dumps(summary)}\n"
+            f"Product stats: {json.dumps(products)}\n"
+        )
+        return claude_client.generate_text(cls.NARRATIVE_SYSTEM_PROMPT, prompt, max_tokens=500)
 
     @staticmethod
     def _build_narrative(brand_name: str, start_date: date, end_date: date, summary: dict, products: list) -> str:
@@ -58,16 +80,22 @@ class WeeklyReportService:
             "latest_price": WeeklyReportService._to_float(row.get("latest_price")),
         }
 
-    @staticmethod
-    def _build_report_payload(brand_name: str, start_date: date, end_date: date, metrics: dict) -> dict:
+    @classmethod
+    def _build_report_payload(cls, brand_name: str, start_date: date, end_date: date, metrics: dict) -> dict:
         summary = metrics["summary"]
-        products = [WeeklyReportService._serialize_product_row(row) for row in metrics["products"]]
-        narrative = WeeklyReportService._build_narrative(brand_name, start_date, end_date, summary, products)
+        products = [cls._serialize_product_row(row) for row in metrics["products"]]
+
+        narrative = cls._build_narrative_with_claude(brand_name, start_date, end_date, summary, products)
+        narrative_source = "claude"
+        if narrative is None:
+            narrative = cls._build_narrative(brand_name, start_date, end_date, summary, products)
+            narrative_source = "rule_based"
 
         return {
             "summary": summary,
             "products": products,
             "narrative": narrative,
+            "narrative_source": narrative_source,
         }
 
     @staticmethod
@@ -90,6 +118,7 @@ class WeeklyReportService:
             "summary": content.get("summary", {}),
             "products": content.get("products", []),
             "narrative": content.get("narrative", ""),
+            "narrative_source": content.get("narrative_source", "rule_based"),
             "generated_at": row["generated_at"],
         }
 

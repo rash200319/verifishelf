@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi.responses import Response
 
 from app.core.auth import require_auth
+from app.repositories.brand_repository import BrandRepository
 from app.schemas.reports import WeeklyReportGenerateRequest, WeeklyReportResponse
+from app.services.pdf_render import render_weekly_report_pdf
 from app.services.weekly_report_service import WeeklyReportService
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -16,6 +19,7 @@ def _format_report(report: dict) -> WeeklyReportResponse:
         summary=report["summary"],
         products=report["products"],
         narrative=report["narrative"],
+        narrative_source=report.get("narrative_source", "rule_based"),
         generated_at=str(report["generated_at"]),
     )
 
@@ -60,3 +64,24 @@ async def get_weekly_report(report_id: int, current_user: dict = Depends(require
         raise HTTPException(status_code=404, detail="Report not found")
 
     return _format_report(report)
+
+
+@router.get("/weekly/{report_id}/pdf")
+async def get_weekly_report_pdf(report_id: int, current_user: dict = Depends(require_auth)):
+    try:
+        report = await WeeklyReportService.get_report(current_user["brand_id"], report_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    brand = await BrandRepository.get_brand_by_id(current_user["brand_id"])
+    brand_name = brand["name"] if brand else "Brand"
+
+    pdf_bytes = render_weekly_report_pdf(brand_name, report)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="weekly-report-{report_id}.pdf"'},
+    )

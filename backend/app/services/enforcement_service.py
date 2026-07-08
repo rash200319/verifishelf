@@ -1,9 +1,36 @@
 from app.repositories.enforcement_letter_repository import EnforcementLetterRepository
+from app.services import claude_client
 
 
 class EnforcementService:
     PROVIDER_TEMPLATE = "template"
-    PROVIDER_GPT4O = "gpt4o"
+    PROVIDER_CLAUDE = "claude"
+    PROVIDER_GPT4O = "gpt4o"  # legacy alias, also routes to Claude -- see generate_for_violation
+
+    LETTER_SYSTEM_PROMPT = (
+        "You are a brand protection compliance officer drafting a formal MAP "
+        "(Minimum Advertised Price) violation notice to a third-party reseller. "
+        "Write a professional, firm, but courteous business letter (Subject line "
+        "plus body). Reference only the facts given in the violation context -- "
+        "do not invent product details, legal claims, or numbers not provided. "
+        "Ask for the price to be corrected within 48 hours and note that "
+        "continued non-compliance may lead to further enforcement action. "
+        "Output only the letter text, no preamble or commentary."
+    )
+
+    @staticmethod
+    def _build_claude_letter_prompt(context: dict) -> str:
+        return (
+            f"Brand: {context['brand_name']}\n"
+            f"Product: {context['product_name']}\n"
+            f"Seller: {context['seller_name']}\n"
+            f"Storefront/listing: {context['listing_title']} ({context['listing_url']})\n"
+            f"MAP price: {context['map_price']} {context.get('currency_code') or 'USD'}\n"
+            f"Advertised price: {context['advertised_price']} {context.get('currency_code') or 'USD'}\n"
+            f"Price delta: {float(context['price_delta_pct'] or 0):.2f}% below MAP\n"
+            f"Detected at: {context['detected_at']}\n"
+            f"Violation status: {context['status']}\n"
+        )
 
     @staticmethod
     def build_template_letter(context: dict) -> str:
@@ -46,11 +73,19 @@ class EnforcementService:
         if context is None:
             raise ValueError(f"Violation {violation_id} not found for brand {brand_id}")
 
-        if provider == cls.PROVIDER_GPT4O:
-            # Keep the interface ready for a future GPT-4o integration.
-            letter_content = cls.build_template_letter(context)
-            generated_by = cls.PROVIDER_GPT4O
-        else:
+        letter_content = None
+        generated_by = cls.PROVIDER_TEMPLATE
+
+        if provider in {cls.PROVIDER_CLAUDE, cls.PROVIDER_GPT4O}:
+            letter_content = claude_client.generate_text(
+                cls.LETTER_SYSTEM_PROMPT,
+                cls._build_claude_letter_prompt(context),
+                max_tokens=600,
+            )
+            if letter_content is not None:
+                generated_by = cls.PROVIDER_CLAUDE
+
+        if letter_content is None:
             letter_content = cls.build_template_letter(context)
             generated_by = cls.PROVIDER_TEMPLATE
 

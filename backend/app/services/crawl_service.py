@@ -286,6 +286,9 @@ class CrawlService:
                     map_price=map_price,
                     advertised_price=crawl_listing.advertised_price,
                     marketplace_id=crawl_listing.marketplace_id,
+                    listing_title=crawl_listing.listing_title,
+                    product_name=product_name,
+                    seller_id=resolved_seller_id,
                 )
             except Exception as exc:
                 logger.exception("Violation detection failed for listing %s", listing["id"])

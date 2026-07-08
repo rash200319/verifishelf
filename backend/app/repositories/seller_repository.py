@@ -62,6 +62,25 @@ class SellerRepository:
                 return SellerRepository._normalize_row(row) if row else None
 
     @staticmethod
+    async def get_seller_by_id(seller_id: int):
+        if db.mysql_pool is None:
+            raise RuntimeError("MySQL pool is not initialized")
+
+        async with db.mysql_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(
+                    """
+                    SELECT id, cluster_id, seller_name, storefront_url, embedding, created_at
+                    FROM sellers
+                    WHERE id = %s
+                    LIMIT 1
+                    """,
+                    (seller_id,),
+                )
+                row = await cur.fetchone()
+                return SellerRepository._normalize_row(row) if row else None
+
+    @staticmethod
     async def list_recent_sellers(limit: int = 100):
         if db.mysql_pool is None:
             raise RuntimeError("MySQL pool is not initialized")

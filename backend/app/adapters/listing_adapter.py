@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from abc import ABC, abstractmethod
@@ -256,7 +257,7 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
     base_url = market["base_url"]
     default_currency = market["currency"]
 
-    proxies = None
+    proxy_url = None
     if proxy_config:
         # e.g., http://username:password@host:port
         auth = proxy_config.get("auth", "")
@@ -264,7 +265,6 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
         port = proxy_config.get("port", "")
         if host and port:
             proxy_url = f"http://{auth}@{host}:{port}" if auth else f"http://{host}:{port}"
-            proxies = {"http://": proxy_url, "https://": proxy_url}
 
     search_url = f"{base_url}/catalog/?q={quote_plus(product_name)}"
     # Daraz's own React frontend fetches results from this same-domain ajax
@@ -274,27 +274,42 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
     # `search_url` which contains no listing data at all pre-hydration.
     ajax_url = f"{base_url}/catalog/?ajax=true&isFirstRequest=true&page=1&q={quote_plus(product_name)}"
 
-    try:
-        async with httpx.AsyncClient(proxies=proxies, timeout=15.0) as client:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept": "application/json, text/plain, */*",
-                "X-Requested-With": "XMLHttpRequest",
-            }
-            response = await client.get(ajax_url, headers=headers)
-            response.raise_for_status()
-            raw_body = response.text
-    except httpx.ProxyError as exc:
-        raise CrawlError("proxy_error", str(exc)) from exc
-    except httpx.TimeoutException as exc:
-        raise CrawlError("timeout", str(exc)) from exc
-    except httpx.HTTPStatusError as exc:
-        if exc.response.status_code in {403, 429}:
-            raise CrawlError("upstream_blocked", f"Status {exc.response.status_code}") from exc
-        raise CrawlError("http_error", str(exc)) from exc
-    except Exception as exc:
-        raise CrawlError("request_failed", str(exc)) from exc
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "application/json, text/plain, */*",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+
+    # Transient network/proxy hiccups get a couple of quick retries; a real
+    # block (403/429) or a hard HTTP error does not, since retrying those
+    # just wastes proxy sessions on a request that will keep failing.
+    max_attempts = 3
+    raw_body: str | None = None
+    last_exc: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            async with httpx.AsyncClient(proxy=proxy_url, timeout=15.0) as client:
+                response = await client.get(ajax_url, headers=headers)
+                response.raise_for_status()
+                raw_body = response.text
+            break
+        except httpx.ProxyError as exc:
+            last_exc = CrawlError("proxy_error", str(exc))
+        except httpx.TimeoutException as exc:
+            last_exc = CrawlError("timeout", str(exc))
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in {403, 429}:
+                raise CrawlError("upstream_blocked", f"Status {exc.response.status_code}") from exc
+            raise CrawlError("http_error", str(exc)) from exc
+        except Exception as exc:
+            raise CrawlError("request_failed", str(exc)) from exc
+
+        if attempt < max_attempts:
+            await asyncio.sleep(0.5 * attempt)
+
+    if raw_body is None:
+        raise last_exc
 
     # Check for upstream blocks in the raw body
     block_hint = _verification_hint(raw_body)
@@ -303,34 +318,21 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
 
     try:
         payload = json.loads(raw_body)
+    except json.JSONDecodeError as exc:
+        raise CrawlError("parse_error", f"Response was not valid JSON: {exc}") from exc
+
+    try:
         listings = _extract_listings_from_ajax_json(
             payload, product_id, base_url, default_currency, fallback_url=search_url
         )
-    except json.JSONDecodeError:
-        # Not JSON (e.g. an HTML block/error page that wasn't caught above) --
-        # fall through to the synthetic fallback listing below.
-        listings = []
     except Exception as exc:
         raise CrawlError("parse_error", str(exc)) from exc
 
-    # If no listings found, create a fallback listing just like demo adapter to keep tests/demo passing,
-    # or raise an error if strict. Let's create a demo fallback if the ajax parse yields nothing.
+    # No synthetic fallback listing: a real zero-result response should
+    # surface as a visible crawl failure, not silently substitute fake data
+    # that could be mistaken for a real violation downstream.
     if not listings:
-        advertised_price = _parse_price("Rs. 25,000")
-        listings = [
-            CrawlListing(
-                product_id=product_id,
-                seller_id=DEMO_SELLER_ID,
-                seller_identity=f"daraz-seller-{DEMO_SELLER_ID}",
-                marketplace_id=ACTIVE_MARKETPLACE_ID,
-                seller_name="Daraz Seller (Fallback)",
-                listing_title=f"{product_name} - Demo Listing",
-                listing_url=search_url,
-                image_url=None,
-                advertised_price=advertised_price,
-                currency_code=default_currency,
-            )
-        ]
+        raise CrawlError("no_listings_found", f"Ajax response parsed but contained no listings for '{product_name}'")
 
     return CrawlResult(
         brand_id=brand_id,

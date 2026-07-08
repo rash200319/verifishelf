@@ -85,6 +85,42 @@ export interface WeeklyReportRecord {
   summary: WeeklyReportSummary;
   products: WeeklyReportProductStat[];
   narrative: string;
+  narrative_source?: string;
+  generated_at: string;
+}
+
+export interface ViolationListingInfo {
+  id: number;
+  product_id: number;
+  seller_id: number;
+  marketplace_id: number;
+  listing_title: string;
+  listing_url: string;
+  image_url?: string | null;
+  currency_code: string;
+  seller_name?: string | null;
+  product_name?: string | null;
+}
+
+export interface ViolationRecord {
+  id: number;
+  listing_id: number;
+  map_price: number;
+  advertised_price: number;
+  price_delta_pct: number | null;
+  classifier_confidence: number | null;
+  classifier_type: string | null;
+  status: string;
+  severity: string | null;
+  detected_at: string;
+  listing: ViolationListingInfo | null;
+}
+
+export interface EnforcementLetterRecord {
+  id: number;
+  violation_id: number;
+  letter_content: string;
+  generated_by: string;
   generated_at: string;
 }
 

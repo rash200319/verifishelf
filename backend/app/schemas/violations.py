@@ -12,6 +12,8 @@ class ListingInfo(BaseModel):
     listing_url: str
     image_url: str | None = None
     currency_code: str
+    seller_name: str | None = None
+    product_name: str | None = None
 
 
 class ViolationResponse(BaseModel):

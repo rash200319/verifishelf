@@ -18,7 +18,7 @@ class ProxyConfigError(Exception):
         super().__init__(f"No proxy pool configured for country '{country_code}'")
 
 
-def _parse_proxy_pool(raw_value: str | None) -> list[dict]:
+def _parse_proxy_pool(raw_value: str | None, proxy_type: str) -> list[dict]:
     if not raw_value:
         return []
 
@@ -35,7 +35,7 @@ def _parse_proxy_pool(raw_value: str | None) -> list[dict]:
         host, port, username, password = parts
         proxies.append(
             {
-                "type": "residential",
+                "type": proxy_type,
                 "host": host,
                 "port": port,
                 "auth": f"{username}:{password}",
@@ -56,15 +56,16 @@ def _pick_proxy(proxies: list[dict], country_code: str, brand_sub_id: str) -> di
     selected["country"] = country_code
     return selected
 
-# Maps a resolved country key to its residential pool env var. ISP pools are
-# not available yet (residential only) -- once added, extend each entry to
-# e.g. {"residential": "PROXY_POOL_PK", "isp": "PROXY_POOL_PK_ISP"} and prefer
-# "isp" here when present.
-_COUNTRY_POOL_ENV = {
-    "PK": "PROXY_POOL_PK",
-    "PAKISTAN": "PROXY_POOL_PK",
-    "IN": "PROXY_POOL_IN",
-    "INDIA": "PROXY_POOL_IN",
+# Maps a resolved country key to its pool env vars, checked in priority
+# order: ISP pools are generally more stable/less shared than residential
+# ones, so a country with both configured prefers ISP. Add a country's ISP
+# var here (e.g. PROXY_POOL_PK_ISP) the moment credentials exist -- no other
+# code change is needed, get_proxy_config will pick it up automatically.
+_COUNTRY_POOL_ENV: dict[str, list[tuple[str, str]]] = {
+    "PK": [("isp", "PROXY_POOL_PK_ISP"), ("residential", "PROXY_POOL_PK")],
+    "PAKISTAN": [("isp", "PROXY_POOL_PK_ISP"), ("residential", "PROXY_POOL_PK")],
+    "IN": [("isp", "PROXY_POOL_IN_ISP"), ("residential", "PROXY_POOL_IN")],
+    "INDIA": [("isp", "PROXY_POOL_IN_ISP"), ("residential", "PROXY_POOL_IN")],
 }
 
 
@@ -72,9 +73,9 @@ def get_proxy_config(country_code: str, brand_sub_id: str) -> dict:
     """
     Country-aware proxy selection.
 
-    Expected environment variables:
-    - PROXY_POOL_PK
-    - PROXY_POOL_IN
+    Expected environment variables (ISP preferred when both are set):
+    - PROXY_POOL_PK_ISP / PROXY_POOL_PK
+    - PROXY_POOL_IN_ISP / PROXY_POOL_IN
 
     Each variable should contain one proxy per line in the format:
     host:port:username:password
@@ -85,9 +86,8 @@ def get_proxy_config(country_code: str, brand_sub_id: str) -> dict:
     """
 
     country_key = (country_code or "").strip().upper()
-    env_var = _COUNTRY_POOL_ENV.get(country_key)
-    if env_var:
-        proxies = _parse_proxy_pool(os.getenv(env_var))
+    for proxy_type, env_var in _COUNTRY_POOL_ENV.get(country_key, []):
+        proxies = _parse_proxy_pool(os.getenv(env_var), proxy_type)
         selected = _pick_proxy(proxies, country_key, brand_sub_id)
         if selected is not None:
             return selected

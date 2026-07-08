@@ -9,8 +9,11 @@ PyMySQL
 celery
 cryptography
 flower
-httpx
+httpx>=0.28
 xgboost
 scikit-learn
 numpy
 playwright
+sentence-transformers
+anthropic
+reportlab
