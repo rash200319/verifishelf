@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, CheckCircle2, KeyRound, PlusCircle, ShieldCheck, UserPlus, Check, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -37,30 +37,48 @@ export default function AdminPage() {
 
   const [pendingBrands, setPendingBrands] = useState<PendingBrand[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
+  const [isTorchproxyAdmin, setIsTorchproxyAdmin] = useState(false);
 
-  useEffect(() => {
-    if (session?.role === "admin") {
-      fetchPendingBrands();
-    }
-  }, [session]);
-
-  const fetchPendingBrands = async () => {
+  const fetchPendingBrands = useCallback(async () => {
     if (!session) return;
     setPendingLoading(true);
     try {
-      const response = await apiRequest<PendingBrandsResponse>("/admin/brands/pending", { session });
+      const response = await apiRequest<PendingBrandsResponse>("/admin/torchproxy/brands/pending", { session });
       setPendingBrands(response.brands || []);
     } catch (error) {
       console.error("Failed to fetch pending brands", error);
     } finally {
       setPendingLoading(false);
     }
-  };
+  }, [session]);
+
+  const checkTorchproxyAdminAccess = useCallback(async () => {
+    if (!session) return;
+    try {
+      await apiRequest<PendingBrandsResponse>("/admin/torchproxy/brands/pending", { session });
+      setIsTorchproxyAdmin(true);
+      await fetchPendingBrands();
+    } catch (error) {
+      // If this fails, they're a brand admin, not a TorchProxy admin
+      setIsTorchproxyAdmin(false);
+      // Pre-fill brand ID and name for brand admins
+      setBrandId(String(session.brand_id));
+      setBrandName(session.brand_name || "");
+    }
+  }, [session, fetchPendingBrands]);
+
+  useEffect(() => {
+    if (session?.role === "admin") {
+      // Check if this is a TorchProxy admin by trying to fetch pending brands
+      // If it fails with 403, they're a brand admin, not a TorchProxy admin
+      checkTorchproxyAdminAccess();
+    }
+  }, [session, checkTorchproxyAdminAccess]);
 
   const handleBrandAction = async (brandId: number, action: 'approve' | 'reject') => {
     if (!session) return;
     try {
-      await apiRequest(`/admin/brands/${brandId}/${action}`, {
+      await apiRequest(`/admin/torchproxy/brands/${brandId}/${action}`, {
         method: "POST",
         session,
         body: JSON.stringify({
@@ -90,6 +108,8 @@ export default function AdminPage() {
       return;
     }
 
+    // Allow both brand admins and TorchProxy admins to access this page
+    // The UI will show different sections based on access level
     if (session.role !== "admin") {
       router.replace("/dashboard");
     }
@@ -110,7 +130,8 @@ export default function AdminPage() {
     setBrandMessage("");
 
     try {
-      const response = await apiRequest<BrandOnboardResponse>("/admin/brands/onboard", {
+      const endpoint = isTorchproxyAdmin ? "/admin/torchproxy/onboard" : "/admin/onboard-my-brand";
+      const response = await apiRequest<BrandOnboardResponse>(endpoint, {
         method: "POST",
         session,
         body: JSON.stringify({ name: brandName, plan }),
@@ -118,8 +139,13 @@ export default function AdminPage() {
 
       setBrandResult(response.brand);
       setBrandId(String(response.brand.id));
-      setBrandMessage(`Created brand ${response.brand.name} with Torch sub-account ${response.brand.torch_sub_id}.`);
-      setBrandName("");
+      setBrandMessage(`Brand ${response.brand.name} onboarded successfully with Torch sub-account ${response.brand.torch_sub_id}.`);
+      if (!isTorchproxyAdmin) {
+        // Brand admins don't clear the brand name since it's their brand
+        setBrandName(session.brand_name || "");
+      } else {
+        setBrandName("");
+      }
     } catch (error) {
       setBrandMessage(error instanceof Error ? error.message : "Brand onboarding failed");
     } finally {
@@ -165,9 +191,9 @@ export default function AdminPage() {
       <section className="space-y-6 pb-10">
         <Card>
           <p className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--foreground-muted)]">Access restricted</p>
-          <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">TorchProxy onboarding is admin only.</h2>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Admin access required.</h2>
           <p className="mt-3 max-w-2xl text-lg leading-8 text-[var(--foreground-muted)]">
-            Sign in with the TorchProxy admin account to create brands and provision users.
+            Sign in with an admin account to access this page.
           </p>
           <div className="mt-6">
             <TactileButton variant="primary" onClick={signOut}>
@@ -184,18 +210,25 @@ export default function AdminPage() {
   return (
     <section className="space-y-8 pb-10">
       <div className="max-w-4xl space-y-3">
-        <p className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--foreground-muted)]">TorchProxy console</p>
-        <h2 className="text-4xl font-extrabold tracking-[-0.04em] text-[var(--foreground)] sm:text-5xl">Onboard brands and create their users.</h2>
+        <p className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--foreground-muted)]">
+          {isTorchproxyAdmin ? "TorchProxy console" : "Brand admin console"}
+        </p>
+        <h2 className="text-4xl font-extrabold tracking-[-0.04em] text-[var(--foreground)] sm:text-5xl">
+          {isTorchproxyAdmin ? "Review and approve brand registrations." : "Onboard your brand to VerifyShelf."}
+        </h2>
         <p className="max-w-3xl text-lg leading-8 text-[var(--foreground-muted)]">
-          This console is the only place where a new brand can be provisioned. Once the brand exists, TorchProxy adds the first users and hands the workspace off to them.
+          {isTorchproxyAdmin 
+            ? "Review pending brand applications and approve them for platform access."
+            : "Complete your brand onboarding to start monitoring MAP compliance across marketplaces."
+          }
         </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
         {[
-          { icon: ShieldCheck, title: "Admin token", detail: `Signed in as ${currentSession.email ?? currentSession.brandName ?? currentSession.brand_name}` },
-          { icon: Building2, title: "Brand onboarding", detail: "Creates the tenant and its Torch sub-account." },
-          { icon: UserPlus, title: "User provisioning", detail: "Adds the first analyst or admin for that brand." },
+          { icon: ShieldCheck, title: "Admin token", detail: `Signed in as ${currentSession.email ?? currentSession.brand_name}` },
+          ...(isTorchproxyAdmin ? [{ icon: Building2, title: "Brand approvals", detail: "Review and approve pending brand registrations." }] : [{ icon: Building2, title: "Brand onboarding", detail: "Configure your brand and select your plan." }]),
+          ...(isTorchproxyAdmin ? [] : [{ icon: UserPlus, title: "Team management", detail: "Add team members to your brand workspace." }]),
         ].map((item) => (
           <Card key={item.title}>
             <item.icon className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
@@ -205,42 +238,44 @@ export default function AdminPage() {
         ))}
       </div>
 
-      <div className="mb-8">
-        <div className="flex items-start gap-4 mb-6">
-          <div>
-            <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Pending Registrations</p>
-            <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Review brand applications.</h3>
+      {isTorchproxyAdmin && (
+        <div className="mb-8">
+          <div className="flex items-start gap-4 mb-6">
+            <div>
+              <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Pending Registrations</p>
+              <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Review brand applications.</h3>
+            </div>
           </div>
+
+          {pendingLoading ? (
+            <p className="text-sm text-[var(--foreground-muted)]">Loading pending brands...</p>
+          ) : pendingBrands.length === 0 ? (
+            <Card className="p-6 text-center text-sm text-[var(--foreground-muted)]">No pending brand registrations.</Card>
+          ) : (
+            <div className="grid gap-4">
+              {pendingBrands.map((b) => (
+                <Card key={b.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <p className="font-bold text-[var(--foreground)]">{b.name}</p>
+                    <p className="text-sm text-[var(--foreground-muted)]">{b.company_name} - {b.business_url}</p>
+                    <p className="text-xs text-[var(--foreground-muted)] mt-1">Notes: {b.onboarding_notes}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <TactileButton variant="primary" onClick={() => handleBrandAction(b.id, 'approve')} className="flex items-center gap-2">
+                      <Check className="h-4 w-4" /> Approve
+                    </TactileButton>
+                    <TactileButton variant="secondary" onClick={() => handleBrandAction(b.id, 'reject')} className="flex items-center gap-2 text-[var(--status-error-text)] hover:text-[var(--status-error-text)] border border-[rgba(239,68,68,0.2)]">
+                      <X className="h-4 w-4" /> Reject
+                    </TactileButton>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
+      )}
 
-        {pendingLoading ? (
-          <p className="text-sm text-[var(--foreground-muted)]">Loading pending brands...</p>
-        ) : pendingBrands.length === 0 ? (
-          <Card className="p-6 text-center text-sm text-[var(--foreground-muted)]">No pending brand registrations.</Card>
-        ) : (
-          <div className="grid gap-4">
-            {pendingBrands.map((b) => (
-              <Card key={b.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <p className="font-bold text-[var(--foreground)]">{b.name}</p>
-                  <p className="text-sm text-[var(--foreground-muted)]">{b.company_name} - {b.business_url}</p>
-                  <p className="text-xs text-[var(--foreground-muted)] mt-1">Notes: {b.onboarding_notes}</p>
-                </div>
-                <div className="flex gap-2">
-                  <TactileButton variant="primary" onClick={() => handleBrandAction(b.id, 'approve')} className="flex items-center gap-2">
-                    <Check className="h-4 w-4" /> Approve
-                  </TactileButton>
-                  <TactileButton variant="secondary" onClick={() => handleBrandAction(b.id, 'reject')} className="flex items-center gap-2 text-[var(--status-error-text)] hover:text-[var(--status-error-text)] border border-[rgba(239,68,68,0.2)]">
-                    <X className="h-4 w-4" /> Reject
-                  </TactileButton>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className={`grid gap-6 ${isTorchproxyAdmin ? 'hidden' : 'max-w-2xl'}`}>
         <Card>
           <div className="flex items-start gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
@@ -248,12 +283,22 @@ export default function AdminPage() {
             </div>
             <div>
               <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Brand onboarding</p>
-              <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Create a brand and its Torch sub-account.</h3>
+              <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Complete your brand setup.</h3>
             </div>
           </div>
 
           <form className="mt-6 space-y-3" onSubmit={onboardBrand}>
-            <DataInput value={brandName} onChange={(event) => setBrandName(event.target.value)} placeholder="Brand name" aria-label="Brand name" required />
+            <div className="space-y-1.5 text-left">
+              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Brand name</label>
+              <DataInput 
+                value={brandName} 
+                onChange={(event) => setBrandName(event.target.value)} 
+                placeholder="Your brand name" 
+                aria-label="Brand name" 
+                readOnly={true}
+                required 
+              />
+            </div>
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-[var(--foreground-muted)]">Plan tier</span>
               <select
@@ -269,36 +314,44 @@ export default function AdminPage() {
               </select>
             </label>
             <TactileButton type="submit" variant="primary" className="w-full justify-center" disabled={brandSubmitting}>
-              {brandSubmitting ? "Creating brand..." : "Create brand"}
+              {brandSubmitting ? "Onboarding brand..." : "Complete onboarding"}
             </TactileButton>
           </form>
 
           {brandMessage ? <div className="mt-4 rounded-[var(--radius-inner)] bg-[var(--bg-inner)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] p-4 text-sm leading-6 text-[var(--foreground-muted)]">{brandMessage}</div> : null}
 
           {brandResult ? (
-            <div className="mt-4 rounded-[var(--radius-inner)] border border-[rgba(239,68,68,0.2)] bg-[var(--status-error-bg)] p-4 text-sm text-[var(--status-error-text)]">
-              <p className="font-bold">Latest brand</p>
-              <p className="mt-2">ID: {brandResult.id}</p>
+            <div className="mt-4 rounded-[var(--radius-inner)] border border-[rgba(34,197,94,0.2)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--status-success-text)]">
+              <p className="font-bold">Brand onboarding complete!</p>
+              <p className="mt-2">Brand: {brandResult.name}</p>
               <p>Plan: {brandResult.plan}</p>
               <p>Torch sub-account: {brandResult.torch_sub_id}</p>
-              <p>Created: {formatDateTime(brandResult.created_at)}</p>
             </div>
           ) : null}
         </Card>
+      </div>
 
+      <div className={`grid gap-6 ${isTorchproxyAdmin ? 'hidden' : 'max-w-2xl'}`}>
         <Card>
           <div className="flex items-start gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
               <KeyRound className="h-7 w-7 text-[var(--accent)]" strokeWidth={1.8} />
             </div>
             <div>
-              <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">User provisioning</p>
-              <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Create the first user for a brand.</h3>
+              <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Team management</p>
+              <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Add team members to your brand.</h3>
             </div>
           </div>
 
           <form className="mt-6 space-y-3" onSubmit={createUser}>
-            <DataInput value={brandId} onChange={(event) => setBrandId(event.target.value)} placeholder="Brand ID" aria-label="Brand ID" required />
+            <DataInput 
+              value={brandId} 
+              onChange={(event) => setBrandId(event.target.value)} 
+              placeholder={`Brand ID (${currentSession.brand_id})`} 
+              aria-label="Brand ID" 
+              readOnly={true}
+              required 
+            />
             <DataInput value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Full name" aria-label="Full name" required />
             <DataInput value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" aria-label="Email" required />
             <DataInput value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="Password" aria-label="Password" required />
@@ -314,7 +367,7 @@ export default function AdminPage() {
               </select>
             </label>
             <TactileButton type="submit" variant="primary" className="w-full justify-center" disabled={userSubmitting}>
-              {userSubmitting ? "Creating user..." : "Create user"}
+              {userSubmitting ? "Creating user..." : "Add team member"}
             </TactileButton>
           </form>
 
@@ -322,10 +375,9 @@ export default function AdminPage() {
 
           {userResult ? (
             <div className="mt-4 rounded-[var(--radius-inner)] border border-[rgba(34,197,94,0.2)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--status-success-text)]">
-              <p className="font-bold">Latest user</p>
+              <p className="font-bold">Team member added!</p>
               <p className="mt-2">Name: {userResult.full_name}</p>
               <p>Email: {userResult.email}</p>
-              <p>Brand ID: {userResult.brand_id}</p>
               <p>Role: {userResult.role}</p>
               <p>Created: {formatDateTime(userResult.created_at)}</p>
             </div>

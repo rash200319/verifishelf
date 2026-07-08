@@ -32,6 +32,7 @@ class CrawlResult(BaseModel):
     product_id: int
     country_code: str
     proxy_config: dict | None = None
+    raw_data: str | None = None
     listings: list[CrawlListing]
 
 
@@ -40,4 +41,5 @@ class NormalizedCrawlResult(BaseModel):
     product_id: int
     country_code: str
     proxy_config: dict | None = None
+    raw_data: str | None = None
     listings: list[NormalizedCrawlListing]

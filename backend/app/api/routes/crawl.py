@@ -7,9 +7,16 @@ from app.core.crawl_schedule import (
     PLAN_CRAWL_INTERVALS,
     is_demo_mode,
 )
-from app.core.marketplaces import DARAZ_COUNTRY_CODE, DARAZ_MARKETPLACE_NAME
+from app.core.marketplaces import (
+    ACTIVE_COUNTRY_CODE,
+    ACTIVE_MARKETPLACE_NAME,
+    ALL_MARKETPLACES,
+)
 from app.repositories.crawl_job_repository import CrawlJobRepository
 from app.schemas.crawl_jobs import CrawlJobResponse, CrawlScheduleResponse
+from app.schemas.marketplace_config import MarketplaceConfigRecord
+from app.schemas.marketplace_preview import MarketplacePreviewRecord
+from app.services.marketplace_preview_service import load_marketplace_previews
 
 router = APIRouter(prefix="/crawl", tags=["crawl"])
 
@@ -26,16 +33,35 @@ def _format_job(job: dict) -> CrawlJobResponse:
     )
 
 
+@router.get("/marketplaces", response_model=list[MarketplaceConfigRecord])
+async def list_marketplaces(current_user: dict = Depends(require_auth)):
+    """Return all registered marketplaces and their scraping status.
+
+    ``is_active=True`` marks the marketplace whose crawl pipeline is
+    currently live.  ``scraping_status`` is either ``'live'`` or
+    ``'phase_two'``.
+    """
+    return [MarketplaceConfigRecord(**m) for m in ALL_MARKETPLACES]
+
+
 @router.get("/schedule", response_model=CrawlScheduleResponse)
 async def get_crawl_schedule(current_user: dict = Depends(require_auth)):
     intervals = DEMO_PLAN_CRAWL_INTERVALS if is_demo_mode() else PLAN_CRAWL_INTERVALS
     return CrawlScheduleResponse(
         demo_mode=is_demo_mode(),
-        marketplace=DARAZ_MARKETPLACE_NAME,
-        country_code=DARAZ_COUNTRY_CODE,
+        marketplace=ACTIVE_MARKETPLACE_NAME,
+        country_code=ACTIVE_COUNTRY_CODE,
         scheduler_tick_seconds=CRAWL_SCHEDULER_TICK_SECONDS,
         intervals_seconds=intervals,
     )
+
+
+@router.get("/marketplace-preview", response_model=list[MarketplacePreviewRecord])
+async def get_marketplace_preview(current_user: dict = Depends(require_auth)):
+    try:
+        return load_marketplace_previews()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/jobs", response_model=list[CrawlJobResponse])

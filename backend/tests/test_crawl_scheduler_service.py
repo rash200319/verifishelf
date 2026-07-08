@@ -10,7 +10,7 @@ from app.services.crawl_scheduler_service import CrawlSchedulerService
 class CrawlSchedulerServiceTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_is_brand_due_when_no_previous_job(self):
         with patch("app.services.crawl_scheduler_service.CrawlJobRepository.get_latest_job", AsyncMock(return_value=None)):
-            due = await CrawlSchedulerService.is_brand_due(1, "starter")
+            due = await CrawlSchedulerService.is_brand_due(1, "starter", 1)
 
         self.assertTrue(due)
 
@@ -26,22 +26,28 @@ class CrawlSchedulerServiceTestCase(unittest.IsolatedAsyncioTestCase):
         }
 
         with patch("app.services.crawl_scheduler_service.CrawlJobRepository.get_latest_job", AsyncMock(return_value=latest_job)):
-            due = await CrawlSchedulerService.is_brand_due(1, "starter")
+            due = await CrawlSchedulerService.is_brand_due(1, "starter", 1)
 
         self.assertFalse(due)
 
     async def test_dispatch_enqueues_only_due_brands(self):
-        targets = [
+        enabled_bms = [
             {
+                "brand_marketplace_id": 1,
                 "brand_id": 1,
+                "marketplace_id": 1,
                 "brand_name": "Demo Brand",
                 "brand_plan": "starter",
-                "product_id": 1,
-                "product_name": "Demo Product",
+                "marketplace_name": "Daraz",
+                "marketplace_country_code": "LK",
+                "country_code": "LK",
+                "crawl_frequency_hrs": None,
+                "enabled": True,
+                "priority": 1,
             }
         ]
 
-        with patch("app.services.crawl_scheduler_service.ProductRepository.list_brand_product_targets", AsyncMock(return_value=targets)), \
+        with patch("app.services.crawl_scheduler_service.CrawlSchedulerService._load_enabled_brand_marketplaces", AsyncMock(return_value=enabled_bms)), \
             patch("app.services.crawl_scheduler_service.CrawlSchedulerService.is_brand_due", AsyncMock(return_value=True)), \
             patch("app.services.crawl_scheduler_service.CrawlJobRepository.create_job", AsyncMock(return_value={"id": 9, "brand_id": 1, "marketplace_id": 1, "status": "queued", "started_at": None, "finished_at": None, "created_at": datetime.now()})):
             result = await CrawlSchedulerService.dispatch_due_crawls("LK")

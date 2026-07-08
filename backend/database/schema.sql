@@ -36,7 +36,7 @@ CREATE TABLE products (
         REFERENCES brands(id)
         ON DELETE CASCADE
 );
-    ,FOREIGN KEY (brand_marketplace_id)
+
 -- =====================================================
 -- MARKETPLACES
 -- =====================================================
@@ -336,6 +336,34 @@ CREATE TABLE crawl_jobs (
     ,FOREIGN KEY (brand_marketplace_id)
         REFERENCES brand_marketplaces(id)
         ON DELETE SET NULL
+);
+
+-- =====================================================
+-- RAW CRAWL RESULTS
+-- =====================================================
+
+CREATE TABLE raw_crawl_results (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    crawl_job_id INT NOT NULL,
+    brand_id INT NOT NULL,
+    product_id INT NOT NULL,
+
+    raw_html LONGTEXT NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (crawl_job_id)
+        REFERENCES crawl_jobs(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (brand_id)
+        REFERENCES brands(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (product_id)
+        REFERENCES products(id)
+        ON DELETE CASCADE
 );
 
 -- =====================================================

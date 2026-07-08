@@ -1,0 +1,38 @@
+{
+  "trained_at": "2026-07-07T12:15:47.317934",
+  "feature_columns": [
+    "price_delta_pct",
+    "listing_title_similarity",
+    "seller_account_age_days",
+    "seller_historical_violation_count"
+  ],
+  "dataset_meta": {
+    "feature_columns": [
+      "price_delta_pct",
+      "listing_title_similarity",
+      "seller_account_age_days",
+      "seller_historical_violation_count"
+    ],
+    "n_real": 3,
+    "n_synthetic": 600,
+    "n_total": 603,
+    "real_pull_error": null,
+    "built_at": "2026-07-07T12:15:47.207314"
+  },
+  "metrics": {
+    "accuracy": 0.7603305785123967,
+    "f1": 0.8481675392670157,
+    "roc_auc": 0.6887052341597796,
+    "n_train": 482,
+    "n_test": 121,
+    "test_real_rows": 1,
+    "test_synthetic_rows": 120
+  },
+  "feature_importance": {
+    "price_delta_pct": 0.2817743718624115,
+    "listing_title_similarity": 0.2734769880771637,
+    "seller_account_age_days": 0.2405969649553299,
+    "seller_historical_violation_count": 0.20415166020393372
+  },
+  "model_path": "app\\ml\\artifacts\\violation_classifier.json"
+}

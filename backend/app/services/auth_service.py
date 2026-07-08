@@ -72,7 +72,7 @@ class AuthService:
                 raise
 
     @staticmethod
-    async def login(email: str, password: str, brand_name: str | None = None):
+    async def login(email: str, password: str):
         user = await UserRepository.get_user_by_email(email)
         if user is None:
             return None
@@ -84,13 +84,12 @@ class AuthService:
         if brand is None:
             return None
 
-        if brand["status"] != "approved":
+        # Allow login for approved brands OR pending brands that have completed onboarding
+        # This allows brand admins to complete onboarding after payment
+        if brand["status"] not in ("approved", "pending_review"):
             return None
 
         if not user.get("is_active"):
-            return None
-
-        if brand_name is not None and brand_name.strip() and brand["name"] != brand_name.strip():
             return None
 
         return {

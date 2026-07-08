@@ -72,7 +72,16 @@ class WeeklyReportService:
 
     @staticmethod
     def _format_report_row(row: dict) -> dict:
-        content = json.loads(row["report_content"]) if row.get("report_content") else {}
+        content = {}
+        if row.get("report_content"):
+            try:
+                content = json.loads(row["report_content"])
+            except json.JSONDecodeError:
+                content = {
+                    "summary": {},
+                    "products": [],
+                    "narrative": row["report_content"]
+                }
         return {
             "id": row["id"],
             "brand_id": row["brand_id"],

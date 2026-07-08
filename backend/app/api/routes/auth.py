@@ -42,7 +42,7 @@ async def register_brand_owner(payload: BrandRegisterRequest):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: LoginRequest):
-    session = await AuthService.login(payload.email, payload.password, payload.brand_name)
+    session = await AuthService.login(payload.email, payload.password)
     if session is None:
         raise HTTPException(
             status_code=401,

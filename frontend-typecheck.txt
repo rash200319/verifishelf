@@ -1,0 +1,5 @@
+
+> verifishelf-frontend@0.1.0 typecheck
+> tsc --noEmit
+
+tsconfig.json(16,27): error TS5103: Invalid value for '--ignoreDeprecations'.

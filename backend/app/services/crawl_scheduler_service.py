@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.core.crawl_schedule import get_crawl_interval_for_plan, is_demo_mode
-from app.core.marketplaces import DARAZ_COUNTRY_CODE
+from app.core.marketplaces import ACTIVE_COUNTRY_CODE
 from app.repositories.crawl_job_repository import CrawlJobRepository
 from app.repositories.product_repository import ProductRepository
 from app.core import db
@@ -88,7 +88,7 @@ class CrawlSchedulerService:
         return elapsed >= interval_seconds
 
     @classmethod
-    async def dispatch_due_crawls(cls, country_code: str = DARAZ_COUNTRY_CODE) -> dict:
+    async def dispatch_due_crawls(cls, country_code: str = ACTIVE_COUNTRY_CODE) -> dict:
         brand_marketplaces = await cls._load_enabled_brand_marketplaces()
 
         dispatched = []
@@ -134,39 +134,54 @@ class CrawlSchedulerService:
         cls,
         crawl_job_id: int,
         brand_id: int,
-        country_code: str = DARAZ_COUNTRY_CODE,
+        country_code: str = ACTIVE_COUNTRY_CODE,
     ) -> dict:
         await CrawlJobRepository.update_job_status(crawl_job_id, "running", started_at=datetime.now())
 
-        products = await ProductRepository.list_products_for_brand(brand_id)
-        if not products:
-            await CrawlJobRepository.update_job_status(crawl_job_id, "failed", finished_at=datetime.now())
+        try:
+            products = await ProductRepository.list_products_for_brand(brand_id)
+            if not products:
+                await CrawlJobRepository.update_job_status(crawl_job_id, "failed", finished_at=datetime.now())
+                return {
+                    "status": "failed",
+                    "crawl_job_id": crawl_job_id,
+                    "brand_id": brand_id,
+                    "error": f"No products found for brand {brand_id}",
+                    "results": [],
+                }
+
+            from app.services.crawl_service import CrawlService
+
+            results = []
+            failed = False
+
+            for product in products:
+                result = await CrawlService.crawl_product(brand_id, int(product["id"]), country_code, crawl_job_id=crawl_job_id)
+                results.append(result)
+                if result.get("status") != "ok":
+                    failed = True
+
+            final_status = "failed" if failed else "completed"
+            await CrawlJobRepository.update_job_status(crawl_job_id, final_status, finished_at=datetime.now())
+
+            return {
+                "status": final_status,
+                "crawl_job_id": crawl_job_id,
+                "brand_id": brand_id,
+                "country_code": country_code,
+                "results": results,
+            }
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception("Unhandled exception during brand crawl %s for brand %s", crawl_job_id, brand_id)
+            try:
+                await CrawlJobRepository.update_job_status(crawl_job_id, "failed", finished_at=datetime.now())
+            except Exception:
+                logging.getLogger(__name__).exception("Failed to update status for job %s to failed", crawl_job_id)
             return {
                 "status": "failed",
                 "crawl_job_id": crawl_job_id,
                 "brand_id": brand_id,
-                "error": f"No products found for brand {brand_id}",
+                "error": str(exc),
                 "results": [],
             }
-
-        from app.services.crawl_service import CrawlService
-
-        results = []
-        failed = False
-
-        for product in products:
-            result = await CrawlService.crawl_product(brand_id, int(product["id"]), country_code)
-            results.append(result)
-            if result.get("status") != "ok":
-                failed = True
-
-        final_status = "failed" if failed else "completed"
-        await CrawlJobRepository.update_job_status(crawl_job_id, final_status, finished_at=datetime.now())
-
-        return {
-            "status": final_status,
-            "crawl_job_id": crawl_job_id,
-            "brand_id": brand_id,
-            "country_code": country_code,
-            "results": results,
-        }

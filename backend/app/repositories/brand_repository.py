@@ -185,3 +185,34 @@ class BrandRepository:
                 (status, reviewed_by, review_notes, brand_id),
             )
             return await BrandRepository.get_brand_by_id(brand_id, conn=conn)
+
+    @staticmethod
+    async def update_brand_plan(
+        brand_id: int,
+        plan: str,
+        torch_sub_id: str,
+        conn=None,
+    ):
+        if db.mysql_pool is None and conn is None:
+            raise RuntimeError("MySQL pool is not initialized")
+
+        if conn is None:
+            async with db.mysql_pool.acquire() as pooled_conn:
+                return await BrandRepository.update_brand_plan(
+                    brand_id,
+                    plan,
+                    torch_sub_id,
+                    conn=pooled_conn,
+                )
+
+        async with conn.cursor(DictCursor) as cur:
+            await cur.execute(
+                """
+                UPDATE brands
+                SET plan = %s,
+                    torch_sub_id = %s
+                WHERE id = %s
+                """,
+                (plan, torch_sub_id, brand_id),
+            )
+            return await BrandRepository.get_brand_by_id(brand_id, conn=conn)
