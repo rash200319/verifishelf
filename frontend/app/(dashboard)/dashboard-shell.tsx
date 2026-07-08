@@ -71,7 +71,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             VerifyShelf
           </p>
           <p className="truncate text-sm font-bold text-[var(--foreground)]">
-            {session?.brandName ?? session?.brand_name ?? "Workspace"}
+            {session?.brand_name ?? "Workspace"}
           </p>
         </div>
       </div>
