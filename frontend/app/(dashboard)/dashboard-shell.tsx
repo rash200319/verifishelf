@@ -29,10 +29,13 @@ const navigationByRole = {
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [session, setSession] = useState(loadSession());
+  const [session, setSession] = useState<ReturnType<typeof loadSession>>(null);
+  const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    setSession(loadSession());
     const syncSession = () => setSession(loadSession());
     window.addEventListener("storage", syncSession);
     window.addEventListener("verifishelf-session", syncSession as EventListener);
@@ -71,7 +74,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             VerifyShelf
           </p>
           <p className="truncate text-sm font-bold text-[var(--foreground)]">
-            {session?.brand_name ?? "Workspace"}
+            {mounted && session?.brand_name ? session.brand_name : "Workspace"}
           </p>
         </div>
       </div>
@@ -158,7 +161,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         {/* Main Content */}
         <main className="flex-1 lg:pl-8 lg:pr-8 xl:pr-12 lg:pt-8 relative overflow-y-auto">
           <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-0">
-            {!session ? (
+            {mounted && !session ? (
               <div className="mb-8 rounded-[var(--radius-lg)] border border-[rgba(255,71,87,0.18)] bg-[rgba(255,255,255,0.56)] px-5 py-4 text-sm text-[var(--foreground-muted)] shadow-[var(--shadow-card)]">
                 No saved session found. Sign in from the home page before using the protected screens.
               </div>

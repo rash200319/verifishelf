@@ -19,7 +19,8 @@ const planOptions = [
 
 export default function AdminPage() {
   const router = useRouter();
-  const [session, setSession] = useState<SessionData | null>(loadSession());
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [brandName, setBrandName] = useState("");
   const [plan, setPlan] = useState<(typeof planOptions)[number]["value"]>("starter");
   const [brandResult, setBrandResult] = useState<BrandOnboardResponse["brand"] | null>(null);
@@ -93,6 +94,8 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
+    setSession(loadSession());
     const syncSession = () => setSession(loadSession());
     window.addEventListener("storage", syncSession);
     window.addEventListener("verifishelf-session", syncSession as EventListener);
@@ -103,6 +106,7 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
+    if (!mounted) return;
     if (!session) {
       router.replace("/");
       return;
@@ -113,7 +117,7 @@ export default function AdminPage() {
     if (session.role !== "admin") {
       router.replace("/dashboard");
     }
-  }, [router, session]);
+  }, [router, session, mounted]);
 
   const signOut = () => {
     clearSession();

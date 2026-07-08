@@ -20,7 +20,8 @@ interface Invite {
 }
 
 export default function InvitesPage() {
-  const [session] = useState<SessionData | null>(loadSession());
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -33,11 +34,16 @@ export default function InvitesPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchInvites();
+    setMounted(true);
+    const loaded = loadSession();
+    setSession(loaded);
+    if (loaded) {
+      void fetchInvites(loaded);
+    }
   }, []);
 
-  const fetchInvites = async () => {
-    if (!session) return;
+  const fetchInvites = async (activeSession = session) => {
+    if (!activeSession) return;
     try {
       setLoading(true);
       const res = await apiRequest<{ invites: Invite[] }>("/brands/invites", { session });

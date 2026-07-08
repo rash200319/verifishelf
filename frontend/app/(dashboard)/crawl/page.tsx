@@ -14,7 +14,8 @@ import { formatDateTime } from "@/lib/format";
 
 export default function CrawlPage() {
   const router = useRouter();
-  const [session, setSession] = useState<SessionData | null>(loadSession());
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [schedule, setSchedule] = useState<CrawlScheduleRecord | null>(null);
   const [jobs, setJobs] = useState<CrawlJobRecord[]>([]);
   const [previews, setPreviews] = useState<MarketplacePreviewRecord[]>([]);
@@ -22,6 +23,8 @@ export default function CrawlPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setMounted(true);
+    setSession(loadSession());
     const syncSession = () => setSession(loadSession());
     window.addEventListener("storage", syncSession);
     window.addEventListener("verifishelf-session", syncSession as EventListener);
@@ -32,6 +35,7 @@ export default function CrawlPage() {
   }, []);
 
   useEffect(() => {
+    if (!mounted) return;
     if (!session) {
       router.replace("/");
       return;
@@ -59,9 +63,9 @@ export default function CrawlPage() {
     };
 
     void loadCrawlData();
-  }, [router, session]);
+  }, [router, session, mounted]);
 
-  if (!session) return null;
+  if (!mounted || !session) return null;
 
   const marketplacesLoaded = useMemo(() => previews.length, [previews]);
 

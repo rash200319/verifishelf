@@ -167,7 +167,7 @@ INSERT INTO enforcement_letters (id, violation_id, letter_content, generated_by,
 -- 12. WEEKLY REPORTS
 -- =====================================================
 INSERT INTO weekly_reports (id, brand_id, report_start_date, report_end_date, report_content, generated_at) VALUES
-(1, 1, DATE_SUB(CURDATE(), INTERVAL 7 DAY), CURDATE(), '--- Weekly MAP Monitoring Report ---\n\nSummary for Demo Brand:\n- Products Monitored: 2\n- Active Listings: 2\n- Violations Detected: 1 (Demo Product 1)\n- Action Taken: Enforcement letter sent to Daraz Discount Store.\n\nStatus is clean for Demo Product 2.', NOW());
+(1, 1, DATE_SUB(CURDATE(), INTERVAL 7 DAY), CURDATE(), '{"summary": {"listings_monitored": 2, "price_snapshots": 5, "violations_detected": 1, "violations_open": 1, "active_promo_windows": 1}, "products": [{"product_id": 1, "product_name": "Demo Product 1", "map_price": 25000.00, "avg_observed_price": 24000.00, "snapshot_count": 2, "latest_price": 24000.00}], "narrative": "--- Weekly MAP Monitoring Report ---\\n\\nSummary for Demo Brand:\\n- Products Monitored: 2\\n- Active Listings: 2\\n- Violations Detected: 1 (Demo Product 1)\\n- Action Taken: Enforcement letter sent to Daraz Discount Store.\\n\\nStatus is clean for Demo Product 2."}', NOW());
 
 -- =====================================================
 -- 13. BRAND INVITES

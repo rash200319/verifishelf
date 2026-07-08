@@ -256,7 +256,7 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
     base_url = market["base_url"]
     default_currency = market["currency"]
 
-    proxies = None
+    proxy_url = None
     if proxy_config:
         # e.g., http://username:password@host:port
         auth = proxy_config.get("auth", "")
@@ -264,7 +264,6 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
         port = proxy_config.get("port", "")
         if host and port:
             proxy_url = f"http://{auth}@{host}:{port}" if auth else f"http://{host}:{port}"
-            proxies = {"http://": proxy_url, "https://": proxy_url}
 
     search_url = f"{base_url}/catalog/?q={quote_plus(product_name)}"
     # Daraz's own React frontend fetches results from this same-domain ajax
@@ -275,7 +274,7 @@ async def crawl_listings(brand_id: int, product_id: int, product_name: str, coun
     ajax_url = f"{base_url}/catalog/?ajax=true&isFirstRequest=true&page=1&q={quote_plus(product_name)}"
 
     try:
-        async with httpx.AsyncClient(proxies=proxies, timeout=15.0) as client:
+        async with httpx.AsyncClient(proxy=proxy_url, timeout=15.0) as client:
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
                 "Accept-Language": "en-US,en;q=0.9",

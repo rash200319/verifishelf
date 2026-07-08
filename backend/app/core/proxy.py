@@ -68,7 +68,7 @@ _COUNTRY_POOL_ENV = {
 }
 
 
-def get_proxy_config(country_code: str, brand_sub_id: str) -> dict:
+def get_proxy_config(country_code: str, brand_sub_id: str) -> dict | None:
     """
     Country-aware proxy selection.
 
@@ -91,5 +91,17 @@ def get_proxy_config(country_code: str, brand_sub_id: str) -> dict:
         selected = _pick_proxy(proxies, country_key, brand_sub_id)
         if selected is not None:
             return selected
+
+    # In demo mode, fall back to any configured proxy pool (e.g. PK or IN) to prevent failures
+    from app.core.crawl_schedule import is_demo_mode
+    if is_demo_mode():
+        for fallback_key in ["PK", "IN"]:
+            fallback_var = _COUNTRY_POOL_ENV.get(fallback_key)
+            if fallback_var:
+                proxies = _parse_proxy_pool(os.getenv(fallback_var))
+                selected = _pick_proxy(proxies, country_key, brand_sub_id)
+                if selected is not None:
+                    return selected
+        return None
 
     raise ProxyConfigError(country_key or country_code)

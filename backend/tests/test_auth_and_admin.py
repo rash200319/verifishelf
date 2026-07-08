@@ -38,7 +38,7 @@ class AuthAndAdminTestCase(unittest.IsolatedAsyncioTestCase):
             "password_hash": "hashed",
             "is_active": True
         }
-        brand = {"id": 2, "name": "Acme Brand", "status": "pending_review"}
+        brand = {"id": 2, "name": "Acme Brand", "status": "rejected"}
 
         with patch("app.services.auth_service.UserRepository.get_user_by_email", AsyncMock(return_value=user)), \
              patch("app.services.auth_service.verify_password", return_value=True), \

@@ -29,12 +29,15 @@ const emptyOverview: OverviewState = {
 
 export default function BrandDashboardPage() {
   const router = useRouter();
-  const [session, setSession] = useState<SessionData | null>(loadSession());
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [overview, setOverview] = useState<OverviewState>(emptyOverview);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setMounted(true);
+    setSession(loadSession());
     const syncSession = () => setSession(loadSession());
     window.addEventListener("storage", syncSession);
     window.addEventListener("verifishelf-session", syncSession as EventListener);
@@ -45,6 +48,7 @@ export default function BrandDashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (!mounted) return;
     if (!session) {
       router.replace("/");
       return;
@@ -71,7 +75,7 @@ export default function BrandDashboardPage() {
     };
 
     void loadOverview();
-  }, [router, session]);
+  }, [router, session, mounted]);
 
   const activePromos = useMemo(
     () => overview.promos.filter((promo) => new Date(promo.end_date) >= new Date()).length,
@@ -81,7 +85,7 @@ export default function BrandDashboardPage() {
   const latestJob = overview.jobs[0];
   const latestReport = overview.reports[0];
 
-  if (!session) return null;
+  if (!mounted || !session) return null;
 
   return (
     <section className="space-y-8 pb-10">

@@ -16,7 +16,8 @@ import { formatDate } from "@/lib/format";
 
 export default function PromosPage() {
   const router = useRouter();
-  const [session, setSession] = useState<SessionData | null>(loadSession());
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [promos, setPromos] = useState<PromoRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,6 +32,8 @@ export default function PromosPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    setSession(loadSession());
     const syncSession = () => setSession(loadSession());
     window.addEventListener("storage", syncSession);
     window.addEventListener("verifishelf-session", syncSession as EventListener);
@@ -61,6 +64,7 @@ export default function PromosPage() {
   };
 
   useEffect(() => {
+    if (!mounted) return;
     if (!session) {
       router.replace("/");
       return;
@@ -68,7 +72,7 @@ export default function PromosPage() {
 
     void loadPromos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, session]);
+  }, [router, session, mounted]);
 
   const activeCount = useMemo(
     () => promos.filter((promo) => new Date(promo.start_date) <= new Date() && new Date(promo.end_date) >= new Date()).length,
@@ -117,7 +121,7 @@ export default function PromosPage() {
     return start <= now && end >= now;
   };
 
-  if (!session) return null;
+  if (!mounted || !session) return null;
 
   return (
     <section className="space-y-8 pb-10">
