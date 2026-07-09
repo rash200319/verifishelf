@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowUpRight, Clock3, Gauge, Radar, ServerCrash, TimerReset, ShieldAlert, Sparkles } from "lucide-react";
+import { AlertCircle, ArrowUpRight, Clock3, Gauge, Radar, ServerCrash, TimerReset, ShieldAlert, Sparkles, Wifi, WifiOff } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { apiRequest } from "@/lib/api";
-import type { CrawlJobRecord, CrawlScheduleRecord, MarketplacePreviewRecord, SessionData } from "@/lib/backend-types";
+import type { CrawlJobRecord, CrawlScheduleRecord, MarketplacePreviewRecord, ProxyHealthRecord, SessionData } from "@/lib/backend-types";
 import { loadSession } from "@/lib/session";
 import { formatDateTime } from "@/lib/format";
 
@@ -18,6 +18,7 @@ export default function CrawlPage() {
   const [schedule, setSchedule] = useState<CrawlScheduleRecord | null>(null);
   const [jobs, setJobs] = useState<CrawlJobRecord[]>([]);
   const [previews, setPreviews] = useState<MarketplacePreviewRecord[]>([]);
+  const [proxyHealth, setProxyHealth] = useState<ProxyHealthRecord[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -42,15 +43,17 @@ export default function CrawlPage() {
       setError("");
 
       try {
-        const [scheduleData, jobData, previewData] = await Promise.all([
+        const [scheduleData, jobData, previewData, proxyHealthData] = await Promise.all([
           apiRequest<CrawlScheduleRecord>("/crawl/schedule", { session }),
           apiRequest<CrawlJobRecord[]>("/crawl/jobs", { session }),
           apiRequest<MarketplacePreviewRecord[]>("/crawl/marketplace-preview", { session }),
+          apiRequest<ProxyHealthRecord[]>("/crawl/proxy-health", { session }).catch(() => []),
         ]);
 
         setSchedule(scheduleData);
         setJobs(jobData);
         setPreviews(previewData);
+        setProxyHealth(proxyHealthData);
       } catch (crawlError) {
         setError(crawlError instanceof Error ? crawlError.message : "Unable to load crawl data");
       } finally {
@@ -214,6 +217,51 @@ export default function CrawlPage() {
               </div>
             </Card>
           ) : null}
+
+          <Card>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Torch Proxy</p>
+                <h3 className="mt-2 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Residential proxy session health</h3>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--foreground-muted)]">
+                  Tracked from real crawl outcomes on this worker. A session gets skipped in favor of another in the pool after repeated failures, then retried after a cooldown.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              {proxyHealth.length ? (
+                proxyHealth.map((entry) => (
+                  <div
+                    key={entry.proxy}
+                    className="flex items-center justify-between gap-3 rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
+                  >
+                    <div className="flex items-center gap-3">
+                      {entry.healthy ? (
+                        <Wifi className="h-4 w-4 text-[var(--status-success-text)]" />
+                      ) : (
+                        <WifiOff className="h-4 w-4 text-[var(--status-error-text)]" />
+                      )}
+                      <div>
+                        <p className="monospace text-xs font-bold text-[var(--foreground)]">{entry.proxy}</p>
+                        <p className="text-[0.7rem] text-[var(--foreground-muted)]">
+                          {entry.country ?? "—"} · {entry.type ?? "residential"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <StatusBadge status={entry.healthy ? "Healthy" : "Cooling down"} type={entry.healthy ? "success" : "error"} />
+                      {entry.consecutive_failures > 0 ? (
+                        <p className="mt-1 text-[0.7rem] text-[var(--foreground-muted)]">{entry.consecutive_failures} consecutive failures</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-[var(--foreground-muted)]">No proxy activity recorded yet on this worker.</p>
+              )}
+            </div>
+          </Card>
 
           <Card>
             <div className="flex items-center gap-3">

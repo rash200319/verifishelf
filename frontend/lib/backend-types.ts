@@ -142,6 +142,16 @@ export interface CrawlScheduleRecord {
   intervals_seconds: Record<string, number>;
 }
 
+export interface ProxyHealthRecord {
+  proxy: string;
+  country: string | null;
+  type: string | null;
+  healthy: boolean;
+  consecutive_failures: number;
+  last_success_at: number | null;
+  last_failure_at: number | null;
+}
+
 export interface MarketplaceFeaturedItem {
   title: string;
   url?: string | null;

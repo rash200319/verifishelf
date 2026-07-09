@@ -12,8 +12,9 @@ from app.core.marketplaces import (
     ACTIVE_MARKETPLACE_NAME,
     ALL_MARKETPLACES,
 )
+from app.core.proxy import get_proxy_health_summary
 from app.repositories.crawl_job_repository import CrawlJobRepository
-from app.schemas.crawl_jobs import CrawlJobResponse, CrawlScheduleResponse
+from app.schemas.crawl_jobs import CrawlJobResponse, CrawlScheduleResponse, ProxyHealthRecord
 from app.schemas.marketplace_config import MarketplaceConfigRecord
 from app.schemas.marketplace_preview import MarketplacePreviewRecord
 from app.services.marketplace_preview_service import load_marketplace_previews
@@ -54,6 +55,16 @@ async def get_crawl_schedule(current_user: dict = Depends(require_auth)):
         scheduler_tick_seconds=CRAWL_SCHEDULER_TICK_SECONDS,
         intervals_seconds=intervals,
     )
+
+
+@router.get("/proxy-health", response_model=list[ProxyHealthRecord])
+async def get_proxy_health(current_user: dict = Depends(require_auth)):
+    """
+    Per-session residential proxy health, tracked from real crawl outcomes
+    (see core.proxy.record_proxy_result). Process-local -- reflects this
+    worker's own recent crawl history, not a cross-fleet view.
+    """
+    return [ProxyHealthRecord(**entry) for entry in get_proxy_health_summary()]
 
 
 @router.get("/marketplace-preview", response_model=list[MarketplacePreviewRecord])
