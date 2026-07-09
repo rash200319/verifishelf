@@ -1,7 +1,12 @@
 import logging
 
 from app.adapters.listing_adapter import crawl_listings, CrawlError
-from app.core.proxy import get_proxy_config, ProxyConfigError
+from app.core.proxy import get_proxy_config, ProxyConfigError, record_proxy_result
+
+# CrawlError steps that indicate the proxy session itself is the problem
+# (vs. a content/parsing issue like no_listings_found or parse_error, which
+# aren't the proxy's fault and shouldn't count against its health).
+PROXY_FAILURE_STEPS = {"proxy_error", "upstream_blocked", "timeout", "request_failed"}
 from app.repositories.brand_repository import BrandRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.listing_repository import ListingRepository
@@ -149,8 +154,11 @@ class CrawlService:
 
         try:
             raw_result = await crawl_listings(brand_id, product_id, product_name, country_code, proxy_config)
+            record_proxy_result(proxy_config, success=True)
         except CrawlError as exc:
             logger.exception("Adapter call failed for brand_id=%s product_id=%s", brand_id, product_id)
+            if exc.step in PROXY_FAILURE_STEPS:
+                record_proxy_result(proxy_config, success=False)
             return CrawlService._failure_result(
                 brand_id,
                 product_id,
@@ -161,6 +169,7 @@ class CrawlService:
             )
         except Exception as exc:
             logger.exception("Adapter call failed for brand_id=%s product_id=%s", brand_id, product_id)
+            record_proxy_result(proxy_config, success=False)
             return CrawlService._failure_result(
                 brand_id,
                 product_id,

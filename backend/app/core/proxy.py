@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import time
 
 
 class ProxyConfigError(Exception):
@@ -45,14 +46,98 @@ def _parse_proxy_pool(raw_value: str | None, proxy_type: str) -> list[dict]:
     return proxies
 
 
+# Per-session health tracking (Day 3 hardening): without this, a brand's
+# deterministic hash-selected proxy session would stay assigned to that
+# brand forever even if it gets IP-banned/flagged -- every future crawl for
+# that brand would keep hitting the same burned session with no recovery
+# path. This tracks consecutive failures per session and rotates to the
+# next candidate in the pool once a session looks unhealthy, retrying it
+# again after a cooldown window in case it recovers.
+#
+# Process-local (in-memory) by design -- fine for this deployment's single
+# Celery worker. A multi-worker production deployment would want this
+# shared (e.g. in Redis, which is already in this stack) instead.
+_health_state: dict[str, dict] = {}
+COOLDOWN_SECONDS = 300
+FAILURE_THRESHOLD = 2
+
+
+def _proxy_key(proxy: dict) -> str:
+    return f"{proxy.get('host', '')}:{proxy.get('port', '')}:{proxy.get('auth', '')}"
+
+
+def record_proxy_result(proxy: dict | None, success: bool) -> None:
+    """Call after a crawl attempt to update this session's health state."""
+    if not proxy:
+        return
+
+    key = _proxy_key(proxy)
+    now = time.time()
+    state = _health_state.setdefault(
+        key,
+        {"consecutive_failures": 0, "last_success": None, "last_failure": None, "country": proxy.get("country"), "type": proxy.get("type")},
+    )
+    state["country"] = proxy.get("country") or state["country"]
+    state["type"] = proxy.get("type") or state["type"]
+    if success:
+        state["consecutive_failures"] = 0
+        state["last_success"] = now
+    else:
+        state["consecutive_failures"] += 1
+        state["last_failure"] = now
+
+
+def _is_healthy(proxy: dict) -> bool:
+    state = _health_state.get(_proxy_key(proxy))
+    if not state or state["consecutive_failures"] < FAILURE_THRESHOLD:
+        return True
+    if state["last_failure"] and (time.time() - state["last_failure"]) >= COOLDOWN_SECONDS:
+        return True
+    return False
+
+
+def get_proxy_health_summary() -> list[dict]:
+    summary = []
+    for key, state in _health_state.items():
+        host_port = ":".join(key.split(":")[:2])
+        healthy = state["consecutive_failures"] < FAILURE_THRESHOLD or (
+            state["last_failure"] is not None and (time.time() - state["last_failure"]) >= COOLDOWN_SECONDS
+        )
+        summary.append(
+            {
+                "proxy": host_port,
+                "country": state.get("country"),
+                "type": state.get("type"),
+                "healthy": healthy,
+                "consecutive_failures": state["consecutive_failures"],
+                "last_success_at": state["last_success"],
+                "last_failure_at": state["last_failure"],
+            }
+        )
+    return summary
+
+
 def _pick_proxy(proxies: list[dict], country_code: str, brand_sub_id: str) -> dict | None:
     if not proxies:
         return None
 
     seed = f"{country_code}:{brand_sub_id}".encode("utf-8")
     digest = hashlib.sha256(seed).hexdigest()
-    index = int(digest[:8], 16) % len(proxies)
-    selected = dict(proxies[index])
+    start_index = int(digest[:8], 16) % len(proxies)
+
+    # Deterministic per-brand selection, but skip sessions currently in
+    # cooldown from repeated recent failures -- rotates to the next
+    # candidate instead of a brand being stuck on one burned session.
+    for offset in range(len(proxies)):
+        candidate = dict(proxies[(start_index + offset) % len(proxies)])
+        candidate["country"] = country_code
+        if _is_healthy(candidate):
+            return candidate
+
+    # Every session in the pool is currently in cooldown -- degrade
+    # gracefully to the original deterministic pick rather than failing
+    # the crawl outright.
+    selected = dict(proxies[start_index])
     selected["country"] = country_code
     return selected
 

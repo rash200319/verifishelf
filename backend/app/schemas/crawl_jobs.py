@@ -19,3 +19,13 @@ class CrawlScheduleResponse(BaseModel):
     country_code: str
     scheduler_tick_seconds: int
     intervals_seconds: dict[str, int]
+
+
+class ProxyHealthRecord(BaseModel):
+    proxy: str
+    country: str | None
+    type: str | None
+    healthy: bool
+    consecutive_failures: int
+    last_success_at: float | None
+    last_failure_at: float | None

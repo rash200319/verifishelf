@@ -91,18 +91,42 @@ def _sigmoid(x: float) -> float:
 
 
 def _sample_synthetic_row(rng: np.random.Generator) -> dict:
-    price_delta_pct = float(np.clip(rng.exponential(scale=15.0) + 0.5, 0.5, 80.0))
-    title_similarity = float(np.clip(rng.beta(5, 2), 0.0, 1.0))
+    # Real crawl data (Day 3 validation) surfaced a failure mode the first
+    # version of this generator didn't cover: a keyword search matching the
+    # wrong product entirely (e.g. a phone *case* matched against a search
+    # for "iPhone 13") produces a huge, near-100% price delta -- not because
+    # it's an aggressive violation, but because it's not the same product at
+    # all. The old generator sampled price_delta_pct and title_similarity
+    # independently and capped delta at 80, so the model never saw this
+    # "huge delta + near-zero similarity" region and extrapolated a flat,
+    # meaningless confidence for every real row that landed there.
+    #
+    # Correlate the two now: a fraction of rows simulate a mismatched-product
+    # search hit (high delta, low similarity), the rest simulate a genuine
+    # same-product reseller (moderate delta, high similarity).
+    is_mismatch_case = rng.random() < 0.3
+    if is_mismatch_case:
+        price_delta_pct = float(rng.uniform(60.0, 99.9))
+        title_similarity = float(np.clip(rng.beta(1.5, 6), 0.0, 1.0))
+    else:
+        price_delta_pct = float(np.clip(rng.exponential(scale=15.0) + 0.5, 0.5, 70.0))
+        title_similarity = float(np.clip(rng.beta(5, 2), 0.0, 1.0))
+
     is_burner_like = rng.random() < 0.15
     account_age_days = float(rng.uniform(0, 3)) if is_burner_like else float(rng.exponential(scale=180.0))
     historical_violation_count = int(rng.poisson(lam=1.2))
 
+    # title_similarity is the dominant term on purpose: a huge price delta
+    # on a mismatched product should NOT read as a confident violation, it
+    # should read as a probable false positive. Price delta and repeat-
+    # offender history only matter once the listing plausibly is the same
+    # product.
     logit = (
-        1.5 * min(price_delta_pct, 40.0) / 40.0
-        + 2.5 * title_similarity
+        3.2 * title_similarity
+        + 1.0 * min(price_delta_pct, 60.0) / 60.0
         + 0.8 * min(historical_violation_count, 5) / 5.0
-        + (1.0 if account_age_days < 3 else 0.0)
-        - 1.5
+        + (0.8 if account_age_days < 3 else 0.0)
+        - 1.9
     )
     p_genuine = _sigmoid(logit)
     label = int(rng.random() < p_genuine)
