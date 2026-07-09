@@ -30,7 +30,13 @@ class AuthAndAdminTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(status["brand_name"], "Acme Brand")
             self.assertEqual(status["status"], "pending_review")
 
-    async def test_login_requires_approved_brand(self):
+    async def test_login_allows_pending_review_brand_to_complete_onboarding(self):
+        # Deliberate, documented behavior (see AuthService.login): a brand
+        # admin must be able to log in while their brand is still
+        # pending_review to finish onboarding after payment. This was
+        # previously (mis-)tested as a rejection case under the name
+        # test_login_requires_approved_brand -- pending_review was never
+        # actually supposed to be rejected, only rejected/needs_more_info are.
         user = {
             "id": 1,
             "brand_id": 2,
@@ -39,6 +45,39 @@ class AuthAndAdminTestCase(unittest.IsolatedAsyncioTestCase):
             "is_active": True
         }
         brand = {"id": 2, "name": "Acme Brand", "status": "pending_review"}
+
+        with patch("app.services.auth_service.UserRepository.get_user_by_email", AsyncMock(return_value=user)), \
+             patch("app.services.auth_service.verify_password", return_value=True), \
+             patch("app.services.auth_service.BrandRepository.get_brand_by_id", AsyncMock(return_value=brand)):
+            session = await AuthService.login("test@example.com", "password")
+            self.assertIsNotNone(session)
+            self.assertEqual(session["brand"]["status"], "pending_review")
+
+    async def test_login_rejects_rejected_brand(self):
+        user = {
+            "id": 1,
+            "brand_id": 2,
+            "email": "test@example.com",
+            "password_hash": "hashed",
+            "is_active": True
+        }
+        brand = {"id": 2, "name": "Acme Brand", "status": "rejected"}
+
+        with patch("app.services.auth_service.UserRepository.get_user_by_email", AsyncMock(return_value=user)), \
+             patch("app.services.auth_service.verify_password", return_value=True), \
+             patch("app.services.auth_service.BrandRepository.get_brand_by_id", AsyncMock(return_value=brand)):
+            session = await AuthService.login("test@example.com", "password")
+            self.assertIsNone(session)
+
+    async def test_login_rejects_needs_more_info_brand(self):
+        user = {
+            "id": 1,
+            "brand_id": 2,
+            "email": "test@example.com",
+            "password_hash": "hashed",
+            "is_active": True
+        }
+        brand = {"id": 2, "name": "Acme Brand", "status": "needs_more_info"}
 
         with patch("app.services.auth_service.UserRepository.get_user_by_email", AsyncMock(return_value=user)), \
              patch("app.services.auth_service.verify_password", return_value=True), \
