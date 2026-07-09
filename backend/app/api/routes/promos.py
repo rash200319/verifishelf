@@ -2,7 +2,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.auth import require_auth
+from app.core.auth import require_auth, require_brand_admin
 from app.schemas.promo import PromoCreateRequest, PromoResponse
 from app.services.promo_service import PromoService
 
@@ -23,7 +23,11 @@ def _format_promo(promo: dict) -> PromoResponse:
 
 
 @router.post("", response_model=PromoResponse)
-async def create_promo(payload: PromoCreateRequest, current_user: dict = Depends(require_auth)):
+async def create_promo(payload: PromoCreateRequest, current_user: dict = Depends(require_brand_admin)):
+    # Admin-only: a promo window suppresses violation detection for its
+    # product/marketplace/date range, so letting any analyst create one
+    # unchecked would mean anyone could quietly whitelist a seller with no
+    # second sign-off.
     try:
         promo = await PromoService.create_promo(
             current_user["brand_id"],

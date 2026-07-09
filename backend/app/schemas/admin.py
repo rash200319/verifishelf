@@ -23,5 +23,6 @@ class AdminUserCreateRequest(BaseModel):
 
 
 class BrandReviewRequest(BaseModel):
-    reviewed_by: str | None = Field(default=None, max_length=255)
+    # No reviewed_by field -- who reviewed this is derived server-side from
+    # the authenticated superadmin token, never trusted from the client.
     review_notes: str | None = Field(default=None, max_length=4000)

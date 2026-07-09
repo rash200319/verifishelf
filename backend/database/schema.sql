@@ -17,6 +17,19 @@ CREATE TABLE brands (
     reviewed_by VARCHAR(255),
     reviewed_at TIMESTAMP NULL,
     torch_sub_id VARCHAR(255),
+
+    -- Brand application / KYB fields, collected at registration so a
+    -- superadmin has more than a name and a URL to judge whether an
+    -- applicant is a real, authorized brand before approving them.
+    registration_number VARCHAR(255) NULL,
+    business_address TEXT NULL,
+    industry VARCHAR(100) NULL,
+    contact_title VARCHAR(150) NULL,
+    contact_phone VARCHAR(50) NULL,
+    estimated_sku_range VARCHAR(50) NULL,
+    current_marketplaces VARCHAR(500) NULL,
+    authorized_attestation BOOLEAN NOT NULL DEFAULT FALSE,
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -373,13 +386,15 @@ CREATE TABLE raw_crawl_results (
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
-    brand_id INT NOT NULL,
+    -- NULL for a superadmin (TorchProxy platform admin) -- not scoped to
+    -- any single brand. Every other role requires a brand_id.
+    brand_id INT NULL,
 
     full_name VARCHAR(255),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
 
-    role ENUM('admin','analyst') DEFAULT 'admin',
+    role ENUM('admin','analyst','superadmin') DEFAULT 'admin',
     is_active BOOLEAN DEFAULT TRUE,
     is_brand_owner BOOLEAN DEFAULT FALSE,
     invite_accepted_at TIMESTAMP NULL,

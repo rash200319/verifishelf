@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.auth import require_admin, require_brand_admin, require_auth
+from app.core.auth import require_superadmin, require_brand_admin
 from app.schemas.admin import AdminBrandOnboardRequest, AdminUserCreateRequest, BrandReviewRequest
 from app.services.auth_service import AdminService, ReviewService
 
@@ -8,11 +8,11 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 # =====================================================
 # TORCHPROXY ADMIN ROUTES (Super-admin functions)
-# Require special TorchProxy admin key
+# Require a real logged-in user with role=superadmin
 # =====================================================
 
 @router.get("/torchproxy/brands/pending")
-async def list_pending_brands(current_user: dict = Depends(require_admin)):
+async def list_pending_brands(current_user: dict = Depends(require_superadmin)):
     """List pending brand registrations (TorchProxy admin only)"""
     try:
         brands = await ReviewService.list_pending_brands()
@@ -23,10 +23,13 @@ async def list_pending_brands(current_user: dict = Depends(require_admin)):
 
 
 @router.post("/torchproxy/brands/{brand_id}/approve")
-async def approve_brand(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_admin)):
+async def approve_brand(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_superadmin)):
     """Approve a pending brand (TorchProxy admin only)"""
     try:
-        brand = await ReviewService.approve_brand(brand_id, payload.reviewed_by, payload.review_notes)
+        # reviewed_by comes from the authenticated token, never the request
+        # body -- an audit trail that trusts a client-supplied "who did
+        # this" field isn't a real audit trail.
+        brand = await ReviewService.approve_brand(brand_id, current_user["email"], payload.review_notes)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -37,10 +40,10 @@ async def approve_brand(brand_id: int, payload: BrandReviewRequest, current_user
 
 
 @router.post("/torchproxy/brands/{brand_id}/reject")
-async def reject_brand(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_admin)):
+async def reject_brand(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_superadmin)):
     """Reject a pending brand (TorchProxy admin only)"""
     try:
-        brand = await ReviewService.reject_brand(brand_id, payload.reviewed_by, payload.review_notes)
+        brand = await ReviewService.reject_brand(brand_id, current_user["email"], payload.review_notes)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -51,10 +54,10 @@ async def reject_brand(brand_id: int, payload: BrandReviewRequest, current_user:
 
 
 @router.post("/torchproxy/brands/{brand_id}/request-info")
-async def request_brand_info(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_admin)):
+async def request_brand_info(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_superadmin)):
     """Request more info from a pending brand (TorchProxy admin only)"""
     try:
-        brand = await ReviewService.request_more_info(brand_id, payload.reviewed_by, payload.review_notes)
+        brand = await ReviewService.request_more_info(brand_id, current_user["email"], payload.review_notes)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -66,7 +69,7 @@ async def request_brand_info(brand_id: int, payload: BrandReviewRequest, current
 
 @router.post("/torchproxy/onboard")
 @router.post("/torchproxy/brands/onboard")
-async def onboard_brand(payload: AdminBrandOnboardRequest, current_user: dict = Depends(require_admin)):
+async def onboard_brand(payload: AdminBrandOnboardRequest, current_user: dict = Depends(require_superadmin)):
     """Onboard a new brand (TorchProxy admin only)"""
     try:
         brand = await AdminService.onboard_brand(payload.name, payload.plan.value)
@@ -163,31 +166,31 @@ async def create_user(payload: AdminUserCreateRequest, current_user: dict = Depe
 # =====================================================
 
 @router.get("/brands/pending")
-async def list_pending_brands_legacy(current_user: dict = Depends(require_admin)):
+async def list_pending_brands_legacy(current_user: dict = Depends(require_superadmin)):
     """Legacy endpoint - use /torchproxy/brands/pending instead"""
     return await list_pending_brands(current_user)
 
 
 @router.post("/brands/{brand_id}/approve")
-async def approve_brand_legacy(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_admin)):
+async def approve_brand_legacy(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_superadmin)):
     """Legacy endpoint - use /torchproxy/brands/{brand_id}/approve instead"""
     return await approve_brand(brand_id, payload, current_user)
 
 
 @router.post("/brands/{brand_id}/reject")
-async def reject_brand_legacy(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_admin)):
+async def reject_brand_legacy(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_superadmin)):
     """Legacy endpoint - use /torchproxy/brands/{brand_id}/reject instead"""
     return await reject_brand(brand_id, payload, current_user)
 
 
 @router.post("/brands/{brand_id}/request-info")
-async def request_brand_info_legacy(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_admin)):
+async def request_brand_info_legacy(brand_id: int, payload: BrandReviewRequest, current_user: dict = Depends(require_superadmin)):
     """Legacy endpoint - use /torchproxy/brands/{brand_id}/request-info instead"""
     return await request_brand_info(brand_id, payload, current_user)
 
 
 @router.post("/onboard")
 @router.post("/brands/onboard")
-async def onboard_brand_legacy(payload: AdminBrandOnboardRequest, current_user: dict = Depends(require_admin)):
+async def onboard_brand_legacy(payload: AdminBrandOnboardRequest, current_user: dict = Depends(require_superadmin)):
     """Legacy endpoint - use /torchproxy/onboard instead"""
     return await onboard_brand(payload, current_user)

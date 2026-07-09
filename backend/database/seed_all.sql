@@ -68,21 +68,27 @@ INSERT INTO brand_marketplaces (id, brand_id, marketplace_id, enabled, crawl_fre
 -- =====================================================
 -- 3. USERS
 -- =====================================================
--- All seeded users use 'demo' as password_hash. The verify_password helper maps 'demo' to password 'admin123'.
+-- All seeded users share the real bcrypt hash of 'admin123' (auth.py no
+-- longer accepts the old 'demo' sentinel -- verify_password only accepts
+-- real bcrypt hashes now).
 INSERT INTO users (id, brand_id, full_name, email, password_hash, role, is_active, is_brand_owner, invite_accepted_at) VALUES
 -- Users for Brand 1 (Demo Brand)
-(1, 1, 'Brand Admin User', 'admin@verifishelf.local', 'demo', 'admin', 1, 1, NOW()),
-(2, 1, 'Brand Analyst User', 'analyst@verifishelf.local', 'demo', 'analyst', 1, 0, NOW()),
+(1, 1, 'Brand Admin User', 'admin@verifishelf.local', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'admin', 1, 1, NOW()),
+(2, 1, 'Brand Analyst User', 'analyst@verifishelf.local', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'analyst', 1, 0, NOW()),
 
 -- Users for Brand 2 (Acme Corp)
-(3, 2, 'Acme Admin', 'admin@acme.com', 'demo', 'admin', 1, 1, NOW()),
-(4, 2, 'Acme Analyst', 'analyst@acme.com', 'demo', 'analyst', 1, 0, NOW()),
+(3, 2, 'Acme Admin', 'admin@acme.com', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'admin', 1, 1, NOW()),
+(4, 2, 'Acme Analyst', 'analyst@acme.com', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'analyst', 1, 0, NOW()),
 
 -- Users for Brand 3 (Global Tech)
-(5, 3, 'Global Tech Admin', 'admin@globaltech.com', 'demo', 'admin', 1, 1, NOW()),
+(5, 3, 'Global Tech Admin', 'admin@globaltech.com', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'admin', 1, 1, NOW()),
 
 -- Users for Brand 4 (Pending Inc)
-(6, 4, 'Pending Owner', 'owner@pendinginc.com', 'demo', 'admin', 0, 1, NULL);
+(6, 4, 'Pending Owner', 'owner@pendinginc.com', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'admin', 0, 1, NULL),
+
+-- TorchProxy Superadmin -- platform-level, not scoped to any brand.
+-- Real bcrypt hash of 'TorchAdmin2026!'.
+(7, NULL, 'TorchProxy Superadmin', 'superadmin@verifishelf.local', '$2b$12$smU1Vw3IdlAQ7K5Yph/Fv.lPdJ1mf08m5Kb8ZfvSixUIYEJ98Llfm', 'superadmin', 1, 0, NULL);
 
 -- =====================================================
 -- 4. PRODUCTS

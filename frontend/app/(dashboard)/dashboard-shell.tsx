@@ -4,15 +4,20 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { FileText, LayoutDashboard, LogOut, Radar, Settings2, ShieldAlert, ShieldCheck, Sparkles, Menu, X, Users } from "lucide-react";
+import { FileText, Fingerprint, LayoutDashboard, LogOut, Radar, Settings2, ShieldAlert, ShieldCheck, Sparkles, Menu, X, Users } from "lucide-react";
 import { clearSession, loadSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const navigationByRole = {
+  // A superadmin isn't scoped to any brand -- there's no dashboard,
+  // violations, promos, crawl, or reports to show them, just the
+  // TorchProxy console where brand registrations get approved.
+  superadmin: [{ href: "/admin", label: "TorchProxy", icon: Settings2 }],
   admin: [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
     { href: "/violations", label: "Violations", icon: ShieldAlert },
+    { href: "/sellers", label: "Sellers", icon: Fingerprint },
     { href: "/admin", label: "TorchProxy", icon: Settings2 },
     { href: "/settings/invites", label: "Invites", icon: Users },
     { href: "/promos", label: "Promos", icon: Sparkles },
@@ -22,6 +27,7 @@ const navigationByRole = {
   analyst: [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
     { href: "/violations", label: "Violations", icon: ShieldAlert },
+    { href: "/sellers", label: "Sellers", icon: Fingerprint },
     { href: "/promos", label: "Promos", icon: Sparkles },
     { href: "/crawl", label: "Crawl Ops", icon: Radar },
     { href: "/reports", label: "Reports", icon: FileText },
@@ -45,6 +51,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, []);
 
   const navigation = useMemo(() => {
+    if (session?.role === "superadmin") {
+      return navigationByRole.superadmin;
+    }
     if (session?.role === "admin") {
       return navigationByRole.admin;
     }
@@ -73,7 +82,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             VerifyShelf
           </p>
           <p className="truncate text-sm font-bold text-[var(--foreground)]">
-            {session?.brand_name ?? "Workspace"}
+            {session?.role === "superadmin" ? "TorchProxy Admin" : session?.brand_name ?? "Workspace"}
           </p>
         </div>
       </div>

@@ -1,11 +1,12 @@
-export type AuthRole = "admin" | "analyst";
+export type AuthRole = "superadmin" | "admin" | "analyst";
 
 export interface SessionData {
   access_token: string;
   token_type: "bearer";
   user_id: number;
-  brand_id: number;
-  brand_name: string;
+  // Null for a superadmin -- not scoped to any brand.
+  brand_id: number | null;
+  brand_name: string | null;
   role: AuthRole | string;
   email?: string;
 }
@@ -30,6 +31,14 @@ export interface PendingBrand {
   company_name: string;
   business_url: string;
   onboarding_notes: string;
+  registration_number?: string | null;
+  business_address?: string | null;
+  industry?: string | null;
+  contact_title?: string | null;
+  contact_phone?: string | null;
+  estimated_sku_range?: string | null;
+  current_marketplaces?: string | null;
+  authorized_attestation?: boolean;
   created_at: string;
 }
 
@@ -122,6 +131,29 @@ export interface EnforcementLetterRecord {
   letter_content: string;
   generated_by: string;
   generated_at: string;
+}
+
+export interface SellerSignature {
+  signature_hash?: string | null;
+  normalized_name?: string | null;
+  storefront_hint?: string | null;
+  linkage_method?: string | null;
+}
+
+export interface ClusterSellerRecord {
+  seller_id: number;
+  seller_name: string;
+  storefront_url?: string | null;
+  signature?: SellerSignature | null;
+  open_violation_count: number;
+}
+
+export interface SellerClusterRecord {
+  cluster_id: number;
+  cluster_name?: string | null;
+  risk_score?: number | null;
+  open_violation_count: number;
+  sellers: ClusterSellerRecord[];
 }
 
 export interface CrawlJobRecord {

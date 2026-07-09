@@ -21,6 +21,15 @@ class AuthService:
         business_url: str,
         company_name: str,
         notes: str | None = None,
+        *,
+        registration_number: str | None = None,
+        business_address: str | None = None,
+        industry: str | None = None,
+        contact_title: str | None = None,
+        contact_phone: str | None = None,
+        estimated_sku_range: str | None = None,
+        current_marketplaces: list[str] | None = None,
+        authorized_attestation: bool = False,
     ):
         if db.mysql_pool is None:
             raise RuntimeError("MySQL pool is not initialized")
@@ -44,6 +53,14 @@ class AuthService:
                     business_url=business_url,
                     onboarding_notes=notes,
                     status="pending_review",
+                    registration_number=registration_number,
+                    business_address=business_address,
+                    industry=industry,
+                    contact_title=contact_title,
+                    contact_phone=contact_phone,
+                    estimated_sku_range=estimated_sku_range,
+                    current_marketplaces=",".join(current_marketplaces) if current_marketplaces else None,
+                    authorized_attestation=authorized_attestation,
                     conn=conn,
                 )
                 if brand is None:
@@ -80,6 +97,16 @@ class AuthService:
         if not verify_password(password, user["password_hash"]):
             return None
 
+        if not user.get("is_active"):
+            return None
+
+        # A superadmin isn't scoped to any brand -- there's nothing to look
+        # up or approval-gate, unlike every other role.
+        if user["brand_id"] is None:
+            if user.get("role") != "superadmin":
+                return None
+            return {"user": user, "brand": None}
+
         brand = await BrandRepository.get_brand_by_id(user["brand_id"])
         if brand is None:
             return None
@@ -87,9 +114,6 @@ class AuthService:
         # Allow login for approved brands OR pending brands that have completed onboarding
         # This allows brand admins to complete onboarding after payment
         if brand["status"] not in ("approved", "pending_review"):
-            return None
-
-        if not user.get("is_active"):
             return None
 
         return {

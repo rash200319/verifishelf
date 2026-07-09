@@ -68,9 +68,10 @@ ON DUPLICATE KEY UPDATE
     storefront_url = VALUES(storefront_url);
 
 -- ─── Admin User ───────────────────────────────────────────────────────────────
--- password_hash='demo' maps to password 'admin123' via the verify_password helper.
+-- Real bcrypt hash of 'admin123' (auth.py no longer accepts the old 'demo'
+-- sentinel -- verify_password only accepts real bcrypt hashes now).
 INSERT INTO users (brand_id, full_name, email, password_hash, role, is_active, is_brand_owner)
-VALUES (1, 'Admin User', 'admin@verifishelf.local', 'demo', 'admin', 1, 1)
+VALUES (1, 'Admin User', 'admin@verifishelf.local', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'admin', 1, 1)
 ON DUPLICATE KEY UPDATE
     brand_id      = VALUES(brand_id),
     full_name     = VALUES(full_name),
@@ -78,3 +79,14 @@ ON DUPLICATE KEY UPDATE
     role          = VALUES(role),
     is_active     = VALUES(is_active),
     is_brand_owner = VALUES(is_brand_owner);
+
+-- ─── TorchProxy Superadmin ──────────────────────────────────────────────────────
+-- Platform-level admin, not scoped to any brand (brand_id NULL). This is the
+-- only account with access to /admin/torchproxy/* (brand approve/reject).
+-- Real bcrypt hash of 'TorchAdmin2026!'.
+INSERT INTO users (brand_id, full_name, email, password_hash, role, is_active, is_brand_owner)
+VALUES (NULL, 'TorchProxy Superadmin', 'superadmin@verifishelf.local', '$2b$12$smU1Vw3IdlAQ7K5Yph/Fv.lPdJ1mf08m5Kb8ZfvSixUIYEJ98Llfm', 'superadmin', 1, 0)
+ON DUPLICATE KEY UPDATE
+    password_hash = VALUES(password_hash),
+    role          = VALUES(role),
+    is_active     = VALUES(is_active);

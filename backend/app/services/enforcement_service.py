@@ -1,11 +1,13 @@
 from app.repositories.enforcement_letter_repository import EnforcementLetterRepository
-from app.services import claude_client
+from app.services import llm_client
 
 
 class EnforcementService:
     PROVIDER_TEMPLATE = "template"
     PROVIDER_CLAUDE = "claude"
-    PROVIDER_GPT4O = "gpt4o"  # legacy alias, also routes to Claude -- see generate_for_violation
+    PROVIDER_GROQ = "groq"
+    PROVIDER_GPT4O = "gpt4o"  # legacy alias, also routes to the LLM chain -- see generate_for_violation
+    LLM_PROVIDERS = {PROVIDER_CLAUDE, PROVIDER_GROQ, PROVIDER_GPT4O}
 
     LETTER_SYSTEM_PROMPT = (
         "You are a brand protection compliance officer drafting a formal MAP "
@@ -76,14 +78,14 @@ class EnforcementService:
         letter_content = None
         generated_by = cls.PROVIDER_TEMPLATE
 
-        if provider in {cls.PROVIDER_CLAUDE, cls.PROVIDER_GPT4O}:
-            letter_content = claude_client.generate_text(
+        if provider in cls.LLM_PROVIDERS:
+            result = llm_client.generate_text(
                 cls.LETTER_SYSTEM_PROMPT,
                 cls._build_claude_letter_prompt(context),
                 max_tokens=600,
             )
-            if letter_content is not None:
-                generated_by = cls.PROVIDER_CLAUDE
+            if result is not None:
+                letter_content, generated_by = result
 
         if letter_content is None:
             letter_content = cls.build_template_letter(context)

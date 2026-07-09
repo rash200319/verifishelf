@@ -1,3 +1,11 @@
+# CPU-only torch wheels for sentence-transformers -- without this, pip pulls
+# the GPU build on Linux (bundles the full CUDA toolkit + cuDNN, ~900MB+),
+# which is both wasteful (no GPU in this deployment) and, on a build host
+# with limited disk, can fail mid-download and take the Docker daemon down
+# with it. Windows wheels don't have this problem, which is why this only
+# ever surfaces inside the Linux container, not on a local Windows install.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 fastapi
 uvicorn
 aiomysql
@@ -17,3 +25,4 @@ playwright
 sentence-transformers
 anthropic
 reportlab
+bcrypt

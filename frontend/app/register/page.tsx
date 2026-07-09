@@ -8,6 +8,21 @@ import { DataInput } from "@/components/ui/data-input";
 import { TactileButton } from "@/components/ui/tactile-button";
 import { apiRequest } from "@/lib/api";
 
+const industryOptions = [
+  "Consumer Electronics",
+  "Apparel & Fashion",
+  "Cosmetics & Beauty",
+  "Home & Living",
+  "Health & Wellness",
+  "Sporting Goods",
+  "Baby & Kids",
+  "Other",
+];
+
+const skuRangeOptions = ["1-20", "21-100", "101-500", "500+"];
+
+const marketplaceOptions = ["Daraz", "Amazon", "Flipkart", "Lazada", "Tokopedia", "Other"];
+
 export default function RegisterPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
@@ -17,13 +32,45 @@ export default function RegisterPage() {
   const [companyName, setCompanyName] = useState("");
   const [businessUrl, setBusinessUrl] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Brand application / KYB fields -- this product drafts enforcement
+  // letters in the brand's name, so a superadmin reviewing this needs more
+  // than just a name and a URL to judge whether the applicant is real and
+  // authorized to act for this brand.
+  const [registrationNumber, setRegistrationNumber] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
+  const [industry, setIndustry] = useState(industryOptions[0]);
+  const [contactTitle, setContactTitle] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [estimatedSkuRange, setEstimatedSkuRange] = useState(skuRangeOptions[0]);
+  const [currentMarketplaces, setCurrentMarketplaces] = useState<string[]>([]);
+  const [authorizedAttestation, setAuthorizedAttestation] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const toggleMarketplace = (marketplace: string) => {
+    setCurrentMarketplaces((prev) =>
+      prev.includes(marketplace) ? prev.filter((m) => m !== marketplace) : [...prev, marketplace],
+    );
+  };
 
   const submitRegister = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
     setError("");
+
+    if (currentMarketplaces.length === 0) {
+      setError("Select at least one marketplace you currently sell on.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!authorizedAttestation) {
+      setError("You must confirm you are authorized to submit MAP enforcement actions on behalf of this brand.");
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       await apiRequest("/auth/register", {
@@ -36,6 +83,14 @@ export default function RegisterPage() {
           company_name: companyName,
           business_url: businessUrl,
           notes,
+          registration_number: registrationNumber,
+          business_address: businessAddress,
+          industry,
+          contact_title: contactTitle,
+          contact_phone: contactPhone,
+          estimated_sku_range: estimatedSkuRange,
+          current_marketplaces: currentMarketplaces,
+          authorized_attestation: authorizedAttestation,
         }),
       });
 
@@ -112,19 +167,99 @@ export default function RegisterPage() {
               </div>
               <div className="space-y-1.5 text-left">
                 <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Company Name</label>
-                <DataInput value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Legal entity" />
+                <DataInput value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Legal entity" required />
               </div>
             </div>
 
             <div className="space-y-1.5 text-left">
               <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Business URL</label>
-              <DataInput value={businessUrl} onChange={(e) => setBusinessUrl(e.target.value)} placeholder="https://..." />
+              <DataInput value={businessUrl} onChange={(e) => setBusinessUrl(e.target.value)} placeholder="https://..." required />
+            </div>
+
+            <p className="pt-2 text-xs font-bold uppercase tracking-[0.2em] text-[var(--foreground-muted)]">Business verification</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5 text-left">
+                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Business Registration Number</label>
+                <DataInput value={registrationNumber} onChange={(e) => setRegistrationNumber(e.target.value)} placeholder="Company reg. / incorporation no." required />
+              </div>
+              <div className="space-y-1.5 text-left">
+                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Industry</label>
+                <select
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  className="machine-recessed h-14 w-full rounded-[var(--radius-md)] border-0 px-4 font-mono text-sm text-[var(--foreground)] focus:outline-none focus:shadow-[var(--shadow-recessed),0_0_0_2px_var(--accent)]"
+                >
+                  {industryOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Registered Business Address</label>
+              <DataInput value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="Street, city, country" required />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5 text-left">
+                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Your Title / Role</label>
+                <DataInput value={contactTitle} onChange={(e) => setContactTitle(e.target.value)} placeholder="e.g. Brand Manager" required />
+              </div>
+              <div className="space-y-1.5 text-left">
+                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Contact Phone</label>
+                <DataInput value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+1 555 000 0000" required />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Estimated SKU Count</label>
+              <select
+                value={estimatedSkuRange}
+                onChange={(e) => setEstimatedSkuRange(e.target.value)}
+                className="machine-recessed h-14 w-full rounded-[var(--radius-md)] border-0 px-4 font-mono text-sm text-[var(--foreground)] focus:outline-none focus:shadow-[var(--shadow-recessed),0_0_0_2px_var(--accent)]"
+              >
+                {skuRangeOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Marketplaces You Currently Sell On</label>
+              <div className="grid grid-cols-2 gap-2 rounded-[var(--radius-md)] bg-[var(--bg-inner)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] sm:grid-cols-3">
+                {marketplaceOptions.map((marketplace) => (
+                  <label key={marketplace} className="flex items-center gap-2 text-sm text-[var(--foreground)]">
+                    <input
+                      type="checkbox"
+                      checked={currentMarketplaces.includes(marketplace)}
+                      onChange={() => toggleMarketplace(marketplace)}
+                      className="h-4 w-4 rounded border-0"
+                    />
+                    {marketplace}
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-1.5 text-left">
               <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Additional Notes</label>
               <DataInput value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did you hear about us? Any specific needs?" />
             </div>
+
+            <label className="flex items-start gap-3 rounded-[var(--radius-md)] bg-[var(--bg-inner)] p-3 text-sm leading-6 text-[var(--foreground)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
+              <input
+                type="checkbox"
+                checked={authorizedAttestation}
+                onChange={(e) => setAuthorizedAttestation(e.target.checked)}
+                className="mt-1 h-4 w-4 shrink-0 rounded border-0"
+                required
+              />
+              <span>
+                I confirm that I am authorized to submit MAP enforcement actions (including takedown/cease-and-desist requests) on behalf of this brand.
+              </span>
+            </label>
 
             <TactileButton type="submit" variant="primary" className="w-full justify-center" disabled={isSubmitting}>
               {isSubmitting ? "Submitting..." : "Submit Registration"}

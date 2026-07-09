@@ -117,7 +117,14 @@ def get_proxy_health_summary() -> list[dict]:
     return summary
 
 
-def _pick_proxy(proxies: list[dict], country_code: str, brand_sub_id: str) -> dict | None:
+def _pick_healthy_proxy(proxies: list[dict], country_code: str, brand_sub_id: str) -> dict | None:
+    """
+    Deterministic per-brand selection, skipping sessions currently in
+    cooldown from repeated recent failures. Unlike _pick_proxy, this
+    returns None (rather than degrading to a burned session) when every
+    candidate is unhealthy -- callers use that to decide whether to try an
+    overflow pool before giving up entirely.
+    """
     if not proxies:
         return None
 
@@ -125,18 +132,29 @@ def _pick_proxy(proxies: list[dict], country_code: str, brand_sub_id: str) -> di
     digest = hashlib.sha256(seed).hexdigest()
     start_index = int(digest[:8], 16) % len(proxies)
 
-    # Deterministic per-brand selection, but skip sessions currently in
-    # cooldown from repeated recent failures -- rotates to the next
-    # candidate instead of a brand being stuck on one burned session.
     for offset in range(len(proxies)):
         candidate = dict(proxies[(start_index + offset) % len(proxies)])
         candidate["country"] = country_code
         if _is_healthy(candidate):
             return candidate
 
+    return None
+
+
+def _pick_proxy(proxies: list[dict], country_code: str, brand_sub_id: str) -> dict | None:
+    if not proxies:
+        return None
+
+    selected = _pick_healthy_proxy(proxies, country_code, brand_sub_id)
+    if selected is not None:
+        return selected
+
     # Every session in the pool is currently in cooldown -- degrade
     # gracefully to the original deterministic pick rather than failing
     # the crawl outright.
+    seed = f"{country_code}:{brand_sub_id}".encode("utf-8")
+    digest = hashlib.sha256(seed).hexdigest()
+    start_index = int(digest[:8], 16) % len(proxies)
     selected = dict(proxies[start_index])
     selected["country"] = country_code
     return selected
@@ -151,6 +169,20 @@ _COUNTRY_POOL_ENV: dict[str, list[tuple[str, str]]] = {
     "PAKISTAN": [("isp", "PROXY_POOL_PK_ISP"), ("residential", "PROXY_POOL_PK")],
     "IN": [("isp", "PROXY_POOL_IN_ISP"), ("residential", "PROXY_POOL_IN")],
     "INDIA": [("isp", "PROXY_POOL_IN_ISP"), ("residential", "PROXY_POOL_IN")],
+}
+
+# Last-resort overflow, not geo-targeted to any of the countries above --
+# only used when a requested country's own configured pool(s) exist but
+# every session in them is currently unhealthy. The proxy this returns is
+# tagged with ITS OWN real origin country (the key below), never the
+# country that was actually requested, so nothing about routing claims is
+# misrepresented -- this is a "keep the crawl running" safety net, not a
+# substitute for genuine geo-targeted routing.
+#
+# Origin country verified empirically via ipinfo.io at the time this pool
+# was added (Day 3 hardening) -- re-verify if the pool's contents change.
+_OVERFLOW_POOL_ENV: dict[str, str] = {
+    "DE": "PROXY_POOL_GENERIC_ISP",
 }
 
 
@@ -168,13 +200,41 @@ def get_proxy_config(country_code: str, brand_sub_id: str) -> dict:
     Raises ProxyConfigError if no real pool is configured for the country --
     there is no placeholder/fake fallback, since a crawl "succeeding" through
     a fake proxy is worse than a crawl that fails visibly at proxy_lookup.
+
+    Selection order: a healthy session from the country's own pool(s) first;
+    if the country has pools configured but every session in them is
+    currently unhealthy, try the non-geo-targeted overflow pool next; only
+    after that fails too do we degrade to the country's own pool anyway
+    (better a possibly-flagged session than no crawl at all).
     """
 
     country_key = (country_code or "").strip().upper()
-    for proxy_type, env_var in _COUNTRY_POOL_ENV.get(country_key, []):
+    tiers = _COUNTRY_POOL_ENV.get(country_key, [])
+
+    any_pool_configured = False
+    for proxy_type, env_var in tiers:
         proxies = _parse_proxy_pool(os.getenv(env_var), proxy_type)
-        selected = _pick_proxy(proxies, country_key, brand_sub_id)
+        if not proxies:
+            continue
+        any_pool_configured = True
+        selected = _pick_healthy_proxy(proxies, country_key, brand_sub_id)
         if selected is not None:
             return selected
+
+    for origin_country, env_var in _OVERFLOW_POOL_ENV.items():
+        overflow_proxies = _parse_proxy_pool(os.getenv(env_var), "isp")
+        if not overflow_proxies:
+            continue
+        selected = _pick_healthy_proxy(overflow_proxies, origin_country, brand_sub_id)
+        if selected is not None:
+            selected["overflow_for"] = country_key
+            return selected
+
+    if any_pool_configured:
+        for proxy_type, env_var in tiers:
+            proxies = _parse_proxy_pool(os.getenv(env_var), proxy_type)
+            selected = _pick_proxy(proxies, country_key, brand_sub_id)
+            if selected is not None:
+                return selected
 
     raise ProxyConfigError(country_key or country_code)
