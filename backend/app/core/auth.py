@@ -15,8 +15,8 @@ load_dotenv()
 
 # Secrets that must never be used in a real deployment -- if the env var is
 # still set to one of these (or unset), the app refuses to start rather than
-# silently signing tokens/gating admin access with a value anyone reading
-# this repo (or its git history) already knows.
+# silently signing tokens with a value anyone reading this repo (or its git
+# history) already knows.
 _KNOWN_WEAK_SECRETS = {"", "dev-secret-change-me", "torchproxy-admin-secret-key-123"}
 
 
@@ -33,7 +33,6 @@ def _require_real_secret(env_var: str) -> str:
 
 AUTH_SECRET = _require_real_secret("AUTH_SECRET")
 AUTH_TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "86400"))
-TORCHPROXY_ADMIN_KEY = _require_real_secret("TORCHPROXY_ADMIN_KEY")
 
 
 def _b64encode_json(payload: dict) -> str:
@@ -118,19 +117,16 @@ def require_brand_admin(authorization: str = Header(default="")) -> dict:
     return payload
 
 
-def require_torchproxy_admin(
-    x_torchproxy_admin_key: str = Header(default="", alias="X-TorchProxy-Admin-Key"),
-) -> dict:
-    if not TORCHPROXY_ADMIN_KEY:
-        raise HTTPException(status_code=500, detail="TorchProxy admin key is not configured")
+def require_superadmin(authorization: str = Header(default="")) -> dict:
+    """
+    TorchProxy platform admin -- a real logged-in user with role=superadmin,
+    same login system as everyone else. Replaces the old X-TorchProxy-Admin-Key
+    static header gate, which was never actually reachable from the frontend
+    (it only ever sent the normal Bearer token) and is retired entirely now
+    that a real account exists for this.
+    """
+    payload = require_auth(authorization)
+    if payload.get("role") != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
 
-    if not x_torchproxy_admin_key or not hmac.compare_digest(x_torchproxy_admin_key, TORCHPROXY_ADMIN_KEY):
-        raise HTTPException(status_code=403, detail="TorchProxy admin access required")
-
-    return {"role": "torchproxy_admin"}
-
-
-def require_admin(
-    x_torchproxy_admin_key: str = Header(default="", alias="X-TorchProxy-Admin-Key"),
-) -> dict:
-    return require_torchproxy_admin(x_torchproxy_admin_key)
+    return payload

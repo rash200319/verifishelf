@@ -14,6 +14,10 @@ from app.services.auth_service import AuthService
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _strip_password_hash(user: dict) -> dict:
+    return {k: v for k, v in user.items() if k != "password_hash"}
+
+
 @router.post("/register", response_model=BrandRegisterResponse)
 async def register_brand_owner(payload: BrandRegisterRequest):
     try:
@@ -25,18 +29,24 @@ async def register_brand_owner(payload: BrandRegisterRequest):
             payload.business_url,
             payload.company_name,
             payload.notes,
+            registration_number=payload.registration_number,
+            business_address=payload.business_address,
+            industry=payload.industry,
+            contact_title=payload.contact_title,
+            contact_phone=payload.contact_phone,
+            estimated_sku_range=payload.estimated_sku_range,
+            current_marketplaces=payload.current_marketplaces,
+            authorized_attestation=payload.authorized_attestation,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    brand = result["brand"]
-    user = result["user"]
     return {
         "message": "Brand registration submitted for review",
-        "brand": brand,
-        "user": user,
+        "brand": result["brand"],
+        "user": _strip_password_hash(result["user"]),
     }
 
 
@@ -50,14 +60,14 @@ async def login(payload: LoginRequest):
         )
 
     user = session["user"]
-    brand = session["brand"]
+    brand = session["brand"]  # None for a superadmin -- not scoped to any brand
     token = create_access_token(
         {
             "sub": user["email"],
             "user_id": user["id"],
-            "brand_id": brand["id"],
-            "brand_name": brand["name"],
-            "brand_status": brand["status"],
+            "brand_id": brand["id"] if brand else None,
+            "brand_name": brand["name"] if brand else None,
+            "brand_status": brand["status"] if brand else None,
             "role": user["role"],
             "email": user["email"],
         }
@@ -67,10 +77,10 @@ async def login(payload: LoginRequest):
         "access_token": token,
         "token_type": "bearer",
         "user_id": user["id"],
-        "brand_id": brand["id"],
-        "brand_name": brand["name"],
+        "brand_id": brand["id"] if brand else None,
+        "brand_name": brand["name"] if brand else None,
         "role": user["role"],
-        "brand_status": brand["status"],
+        "brand_status": brand["status"] if brand else None,
     }
 
 
@@ -92,7 +102,7 @@ async def join_with_invite(payload: JoinInviteRequest):
     return {
         "message": "Invite accepted successfully",
         "brand": result["brand"],
-        "user": result["user"],
+        "user": _strip_password_hash(result["user"]),
     }
 
 

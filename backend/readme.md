@@ -380,7 +380,6 @@ Seed data: `backend/database/seed_daraz_mvp.sql`
 | `REDIS_HOST` | 127.0.0.1 | Redis host |
 | `REDIS_PORT` | 6379 | Redis port |
 | `AUTH_SECRET` | *(required, no default)* | Token signing key -- app refuses to start if unset or left as a known placeholder. Generate with `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
-| `TORCHPROXY_ADMIN_KEY` | *(required, no default)* | Static header key gating the platform-level brand-approval endpoints. Generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | `AUTH_TOKEN_TTL_SECONDS` | 86400 | Token expiry |
 | `CRAWL_COUNTRY_CODE` | LK | Daraz country |
 | `CRAWL_DEMO_MODE` | true | Use shorter crawl intervals |

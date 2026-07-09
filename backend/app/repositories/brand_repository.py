@@ -14,6 +14,14 @@ class BrandRepository:
         business_url: str | None = None,
         onboarding_notes: str | None = None,
         status: str = "pending_review",
+        registration_number: str | None = None,
+        business_address: str | None = None,
+        industry: str | None = None,
+        contact_title: str | None = None,
+        contact_phone: str | None = None,
+        estimated_sku_range: str | None = None,
+        current_marketplaces: str | None = None,
+        authorized_attestation: bool = False,
         conn=None,
     ):
         if db.mysql_pool is None and conn is None:
@@ -29,6 +37,14 @@ class BrandRepository:
                     business_url=business_url,
                     onboarding_notes=onboarding_notes,
                     status=status,
+                    registration_number=registration_number,
+                    business_address=business_address,
+                    industry=industry,
+                    contact_title=contact_title,
+                    contact_phone=contact_phone,
+                    estimated_sku_range=estimated_sku_range,
+                    current_marketplaces=current_marketplaces,
+                    authorized_attestation=authorized_attestation,
                     conn=pooled_conn,
                 )
 
@@ -42,15 +58,34 @@ class BrandRepository:
                     company_name,
                     business_url,
                     onboarding_notes,
-                    torch_sub_id
+                    torch_sub_id,
+                    registration_number,
+                    business_address,
+                    industry,
+                    contact_title,
+                    contact_phone,
+                    estimated_sku_range,
+                    current_marketplaces,
+                    authorized_attestation
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (name, plan, status, company_name, business_url, onboarding_notes, torch_sub_id),
+                (
+                    name, plan, status, company_name, business_url, onboarding_notes, torch_sub_id,
+                    registration_number, business_address, industry, contact_title, contact_phone,
+                    estimated_sku_range, current_marketplaces, authorized_attestation,
+                ),
             )
 
             brand_id = cur.lastrowid
-            return await BrandRepository.get_brand_by_id(brand_id)
+            # Must reuse the same connection/transaction here -- calling
+            # get_brand_by_id() without conn acquires a *different* pooled
+            # connection, which can't see this insert until the caller's
+            # transaction commits (e.g. register_brand_owner wraps this in
+            # an explicit conn.begin()/commit() and creates the user row
+            # afterward), so this would return None and the whole
+            # registration would fail with "Failed to create brand".
+            return await BrandRepository.get_brand_by_id(brand_id, conn=conn)
 
     @staticmethod
     async def get_brand_by_name(name: str, conn=None):
@@ -76,6 +111,14 @@ class BrandRepository:
                     reviewed_by,
                     reviewed_at,
                     torch_sub_id,
+                    registration_number,
+                    business_address,
+                    industry,
+                    contact_title,
+                    contact_phone,
+                    estimated_sku_range,
+                    current_marketplaces,
+                    authorized_attestation,
                     created_at
                 FROM brands
                 WHERE name = %s
@@ -109,6 +152,14 @@ class BrandRepository:
                     reviewed_by,
                     reviewed_at,
                     torch_sub_id,
+                    registration_number,
+                    business_address,
+                    industry,
+                    contact_title,
+                    contact_phone,
+                    estimated_sku_range,
+                    current_marketplaces,
+                    authorized_attestation,
                     created_at
                 FROM brands
                 WHERE id = %s
@@ -142,6 +193,14 @@ class BrandRepository:
                     reviewed_by,
                     reviewed_at,
                     torch_sub_id,
+                    registration_number,
+                    business_address,
+                    industry,
+                    contact_title,
+                    contact_phone,
+                    estimated_sku_range,
+                    current_marketplaces,
+                    authorized_attestation,
                     created_at
                 FROM brands
                 WHERE status = 'pending_review'

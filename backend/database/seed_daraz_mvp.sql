@@ -79,3 +79,14 @@ ON DUPLICATE KEY UPDATE
     role          = VALUES(role),
     is_active     = VALUES(is_active),
     is_brand_owner = VALUES(is_brand_owner);
+
+-- ─── TorchProxy Superadmin ──────────────────────────────────────────────────────
+-- Platform-level admin, not scoped to any brand (brand_id NULL). This is the
+-- only account with access to /admin/torchproxy/* (brand approve/reject).
+-- Real bcrypt hash of 'TorchAdmin2026!'.
+INSERT INTO users (brand_id, full_name, email, password_hash, role, is_active, is_brand_owner)
+VALUES (NULL, 'TorchProxy Superadmin', 'superadmin@verifishelf.local', '$2b$12$smU1Vw3IdlAQ7K5Yph/Fv.lPdJ1mf08m5Kb8ZfvSixUIYEJ98Llfm', 'superadmin', 1, 0)
+ON DUPLICATE KEY UPDATE
+    password_hash = VALUES(password_hash),
+    role          = VALUES(role),
+    is_active     = VALUES(is_active);

@@ -45,7 +45,9 @@ export default function LoginPage() {
 
       saveSession(session);
       window.dispatchEvent(new Event("verifishelf-session"));
-      router.replace("/dashboard");
+      // A superadmin has no brand, so /dashboard (which assumes one) makes
+      // no sense for them -- send them straight to the TorchProxy console.
+      router.replace(session.role === "superadmin" ? "/admin" : "/dashboard");
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : "Login failed");
     } finally {

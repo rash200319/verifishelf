@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.auth import require_auth
+from app.core.auth import require_auth, require_brand_admin
 from app.schemas.violations import EnforcementGenerateRequest, EnforcementLetterResponse
 from app.services.enforcement_service import EnforcementService
 
@@ -21,8 +21,12 @@ def _format_letter(letter: dict) -> EnforcementLetterResponse:
 async def generate_enforcement_letter(
     violation_id: int,
     payload: EnforcementGenerateRequest | None = None,
-    current_user: dict = Depends(require_auth),
+    current_user: dict = Depends(require_brand_admin),
 ):
+    # Admin-only: this drafts (and is the basis for sending) a formal
+    # notice in the brand's name to a third party -- an external-facing,
+    # reputational action that shouldn't be initiated by any analyst
+    # without sign-off.
     request = payload or EnforcementGenerateRequest()
     try:
         letter = await EnforcementService.generate_for_violation(

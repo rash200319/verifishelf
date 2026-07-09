@@ -10,6 +10,10 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const navigationByRole = {
+  // A superadmin isn't scoped to any brand -- there's no dashboard,
+  // violations, promos, crawl, or reports to show them, just the
+  // TorchProxy console where brand registrations get approved.
+  superadmin: [{ href: "/admin", label: "TorchProxy", icon: Settings2 }],
   admin: [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
     { href: "/violations", label: "Violations", icon: ShieldAlert },
@@ -47,6 +51,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, []);
 
   const navigation = useMemo(() => {
+    if (session?.role === "superadmin") {
+      return navigationByRole.superadmin;
+    }
     if (session?.role === "admin") {
       return navigationByRole.admin;
     }
@@ -75,7 +82,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             VerifyShelf
           </p>
           <p className="truncate text-sm font-bold text-[var(--foreground)]">
-            {session?.brand_name ?? "Workspace"}
+            {session?.role === "superadmin" ? "TorchProxy Admin" : session?.brand_name ?? "Workspace"}
           </p>
         </div>
       </div>

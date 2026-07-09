@@ -37,7 +37,11 @@ export default function AdminPage() {
 
   const [pendingBrands, setPendingBrands] = useState<PendingBrand[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
-  const [isTorchproxyAdmin, setIsTorchproxyAdmin] = useState(false);
+  // Derived directly from the real logged-in role -- no probe request
+  // needed (the old version tried to detect this by calling a superadmin-
+  // only endpoint with a normal brand token and seeing if it failed, which
+  // never actually worked since that endpoint never accepted brand tokens).
+  const isTorchproxyAdmin = session?.role === "superadmin";
 
   const fetchPendingBrands = useCallback(async () => {
     if (!session) return;
@@ -52,28 +56,14 @@ export default function AdminPage() {
     }
   }, [session]);
 
-  const checkTorchproxyAdminAccess = useCallback(async () => {
-    if (!session) return;
-    try {
-      await apiRequest<PendingBrandsResponse>("/admin/torchproxy/brands/pending", { session });
-      setIsTorchproxyAdmin(true);
-      await fetchPendingBrands();
-    } catch (error) {
-      // If this fails, they're a brand admin, not a TorchProxy admin
-      setIsTorchproxyAdmin(false);
-      // Pre-fill brand ID and name for brand admins
+  useEffect(() => {
+    if (isTorchproxyAdmin) {
+      void fetchPendingBrands();
+    } else if (session?.role === "admin") {
       setBrandId(String(session.brand_id));
       setBrandName(session.brand_name || "");
     }
-  }, [session, fetchPendingBrands]);
-
-  useEffect(() => {
-    if (session?.role === "admin") {
-      // Check if this is a TorchProxy admin by trying to fetch pending brands
-      // If it fails with 403, they're a brand admin, not a TorchProxy admin
-      checkTorchproxyAdminAccess();
-    }
-  }, [session, checkTorchproxyAdminAccess]);
+  }, [session, isTorchproxyAdmin, fetchPendingBrands]);
 
   const handleBrandAction = async (brandId: number, action: 'approve' | 'reject') => {
     if (!session) return;
@@ -82,7 +72,8 @@ export default function AdminPage() {
         method: "POST",
         session,
         body: JSON.stringify({
-          reviewed_by: session.email || "admin",
+          // reviewed_by is derived server-side from the authenticated
+          // superadmin token, not sent by the client.
           review_notes: "Processed via dashboard"
         })
       });
@@ -108,9 +99,9 @@ export default function AdminPage() {
       return;
     }
 
-    // Allow both brand admins and TorchProxy admins to access this page
-    // The UI will show different sections based on access level
-    if (session.role !== "admin") {
+    // Allow both brand admins and TorchProxy superadmins to access this
+    // page -- the UI shows different sections based on role.
+    if (session.role !== "admin" && session.role !== "superadmin") {
       router.replace("/dashboard");
     }
   }, [router, session]);
@@ -186,7 +177,7 @@ export default function AdminPage() {
     }
   };
 
-  if (!session || session.role !== "admin") {
+  if (!session || (session.role !== "admin" && session.role !== "superadmin")) {
     return (
       <section className="space-y-6 pb-10">
         <Card>
@@ -254,13 +245,30 @@ export default function AdminPage() {
           ) : (
             <div className="grid gap-4">
               {pendingBrands.map((b) => (
-                <Card key={b.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <p className="font-bold text-[var(--foreground)]">{b.name}</p>
-                    <p className="text-sm text-[var(--foreground-muted)]">{b.company_name} - {b.business_url}</p>
-                    <p className="text-xs text-[var(--foreground-muted)] mt-1">Notes: {b.onboarding_notes}</p>
+                <Card key={b.id} className="p-4 flex flex-col md:flex-row md:items-start justify-between gap-4">
+                  <div className="min-w-0 space-y-2">
+                    <div>
+                      <p className="font-bold text-[var(--foreground)]">{b.name}</p>
+                      <p className="text-sm text-[var(--foreground-muted)]">{b.company_name} &middot; {b.business_url}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[var(--foreground-muted)] sm:grid-cols-3">
+                      <p><span className="font-semibold text-[var(--foreground)]">Reg. #:</span> {b.registration_number || "—"}</p>
+                      <p><span className="font-semibold text-[var(--foreground)]">Industry:</span> {b.industry || "—"}</p>
+                      <p><span className="font-semibold text-[var(--foreground)]">Est. SKUs:</span> {b.estimated_sku_range || "—"}</p>
+                      <p><span className="font-semibold text-[var(--foreground)]">Contact:</span> {b.contact_title || "—"}</p>
+                      <p><span className="font-semibold text-[var(--foreground)]">Phone:</span> {b.contact_phone || "—"}</p>
+                      <p><span className="font-semibold text-[var(--foreground)]">Sells on:</span> {b.current_marketplaces || "—"}</p>
+                      <p className="col-span-2 sm:col-span-3"><span className="font-semibold text-[var(--foreground)]">Address:</span> {b.business_address || "—"}</p>
+                      <p className="col-span-2 sm:col-span-3">
+                        <span className="font-semibold text-[var(--foreground)]">Authorization attested:</span>{" "}
+                        {b.authorized_attestation ? "Yes" : "No"}
+                      </p>
+                    </div>
+                    {b.onboarding_notes ? (
+                      <p className="text-xs text-[var(--foreground-muted)]">Notes: {b.onboarding_notes}</p>
+                    ) : null}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <TactileButton variant="primary" onClick={() => handleBrandAction(b.id, 'approve')} className="flex items-center gap-2">
                       <Check className="h-4 w-4" /> Approve
                     </TactileButton>

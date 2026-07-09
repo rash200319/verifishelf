@@ -84,7 +84,11 @@ INSERT INTO users (id, brand_id, full_name, email, password_hash, role, is_activ
 (5, 3, 'Global Tech Admin', 'admin@globaltech.com', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'admin', 1, 1, NOW()),
 
 -- Users for Brand 4 (Pending Inc)
-(6, 4, 'Pending Owner', 'owner@pendinginc.com', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'admin', 0, 1, NULL);
+(6, 4, 'Pending Owner', 'owner@pendinginc.com', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'admin', 0, 1, NULL),
+
+-- TorchProxy Superadmin -- platform-level, not scoped to any brand.
+-- Real bcrypt hash of 'TorchAdmin2026!'.
+(7, NULL, 'TorchProxy Superadmin', 'superadmin@verifishelf.local', '$2b$12$smU1Vw3IdlAQ7K5Yph/Fv.lPdJ1mf08m5Kb8ZfvSixUIYEJ98Llfm', 'superadmin', 1, 0, NULL);
 
 -- =====================================================
 -- 4. PRODUCTS
