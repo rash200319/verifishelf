@@ -124,6 +124,29 @@ export interface EnforcementLetterRecord {
   generated_at: string;
 }
 
+export interface SellerSignature {
+  signature_hash?: string | null;
+  normalized_name?: string | null;
+  storefront_hint?: string | null;
+  linkage_method?: string | null;
+}
+
+export interface ClusterSellerRecord {
+  seller_id: number;
+  seller_name: string;
+  storefront_url?: string | null;
+  signature?: SellerSignature | null;
+  open_violation_count: number;
+}
+
+export interface SellerClusterRecord {
+  cluster_id: number;
+  cluster_name?: string | null;
+  risk_score?: number | null;
+  open_violation_count: number;
+  sellers: ClusterSellerRecord[];
+}
+
 export interface CrawlJobRecord {
   id: number;
   brand_id: number;

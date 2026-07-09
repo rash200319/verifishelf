@@ -68,9 +68,10 @@ ON DUPLICATE KEY UPDATE
     storefront_url = VALUES(storefront_url);
 
 -- ─── Admin User ───────────────────────────────────────────────────────────────
--- password_hash='demo' maps to password 'admin123' via the verify_password helper.
+-- Real bcrypt hash of 'admin123' (auth.py no longer accepts the old 'demo'
+-- sentinel -- verify_password only accepts real bcrypt hashes now).
 INSERT INTO users (brand_id, full_name, email, password_hash, role, is_active, is_brand_owner)
-VALUES (1, 'Admin User', 'admin@verifishelf.local', 'demo', 'admin', 1, 1)
+VALUES (1, 'Admin User', 'admin@verifishelf.local', '$2b$12$gnWosz0QEKkN/zJTaDCL3.uDlQ0zYV9LBIdcYLcXgIg2uWRbFAK0y', 'admin', 1, 1)
 ON DUPLICATE KEY UPDATE
     brand_id      = VALUES(brand_id),
     full_name     = VALUES(full_name),

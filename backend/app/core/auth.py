@@ -7,16 +7,33 @@ import json
 import os
 import time
 
+import bcrypt
 from dotenv import load_dotenv
 from fastapi import HTTPException, Header
 
 load_dotenv()
 
-AUTH_SECRET = os.getenv("AUTH_SECRET", "dev-secret-change-me")
-DEMO_AUTH_EMAIL = os.getenv("DEMO_AUTH_EMAIL", "admin@verifishelf.local")
-DEMO_AUTH_PASSWORD = os.getenv("DEMO_AUTH_PASSWORD", "admin123")
+# Secrets that must never be used in a real deployment -- if the env var is
+# still set to one of these (or unset), the app refuses to start rather than
+# silently signing tokens/gating admin access with a value anyone reading
+# this repo (or its git history) already knows.
+_KNOWN_WEAK_SECRETS = {"", "dev-secret-change-me", "torchproxy-admin-secret-key-123"}
+
+
+def _require_real_secret(env_var: str) -> str:
+    value = os.getenv(env_var, "")
+    if value in _KNOWN_WEAK_SECRETS:
+        raise RuntimeError(
+            f"{env_var} is not set to a real secret. Generate one with "
+            f"`python -c \"import secrets; print(secrets.token_urlsafe(48))\"` "
+            f"and set it in your .env -- refusing to start with a known/placeholder value."
+        )
+    return value
+
+
+AUTH_SECRET = _require_real_secret("AUTH_SECRET")
 AUTH_TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "86400"))
-TORCHPROXY_ADMIN_KEY = os.getenv("TORCHPROXY_ADMIN_KEY", "")
+TORCHPROXY_ADMIN_KEY = _require_real_secret("TORCHPROXY_ADMIN_KEY")
 
 
 def _b64encode_json(payload: dict) -> str:
@@ -51,17 +68,23 @@ def create_access_token(payload: dict) -> str:
 
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(password: str, stored_password_hash: str) -> bool:
-    if stored_password_hash in {"hashed_password_here", "demo"}:
-        return password == DEMO_AUTH_PASSWORD
+    """
+    bcrypt only -- no demo-password sentinel, no plaintext-equality
+    fallback. A row that isn't a valid bcrypt hash (e.g. a leftover 'demo'
+    seed sentinel or an old sha256 hash) is rejected rather than silently
+    accepted through a weaker path; re-seed/reset the password instead.
+    """
+    if not stored_password_hash:
+        return False
 
-    if stored_password_hash == password:
-        return True
-
-    return hmac.compare_digest(hash_password(password), stored_password_hash)
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), stored_password_hash.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def require_auth(authorization: str = Header(default="")) -> dict:
