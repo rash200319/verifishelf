@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 from app.repositories.brand_repository import BrandRepository
 from app.repositories.weekly_report_repository import WeeklyReportRepository
-from app.services import claude_client
+from app.services import llm_client
 
 
 class WeeklyReportService:
@@ -29,16 +29,16 @@ class WeeklyReportService:
         return float(value)
 
     @classmethod
-    def _build_narrative_with_claude(
+    def _build_narrative_with_llm(
         cls, brand_name: str, start_date: date, end_date: date, summary: dict, products: list
-    ) -> str | None:
+    ) -> tuple[str, str] | None:
         prompt = (
             f"Brand: {brand_name}\n"
             f"Period: {start_date.isoformat()} to {end_date.isoformat()}\n"
             f"Summary: {json.dumps(summary)}\n"
             f"Product stats: {json.dumps(products)}\n"
         )
-        return claude_client.generate_text(cls.NARRATIVE_SYSTEM_PROMPT, prompt, max_tokens=500)
+        return llm_client.generate_text(cls.NARRATIVE_SYSTEM_PROMPT, prompt, max_tokens=500)
 
     @staticmethod
     def _build_narrative(brand_name: str, start_date: date, end_date: date, summary: dict, products: list) -> str:
@@ -85,9 +85,10 @@ class WeeklyReportService:
         summary = metrics["summary"]
         products = [cls._serialize_product_row(row) for row in metrics["products"]]
 
-        narrative = cls._build_narrative_with_claude(brand_name, start_date, end_date, summary, products)
-        narrative_source = "claude"
-        if narrative is None:
+        llm_result = cls._build_narrative_with_llm(brand_name, start_date, end_date, summary, products)
+        if llm_result is not None:
+            narrative, narrative_source = llm_result
+        else:
             narrative = cls._build_narrative(brand_name, start_date, end_date, summary, products)
             narrative_source = "rule_based"
 

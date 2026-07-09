@@ -31,6 +31,12 @@ function classifierLabel(classifierType: string | null): string {
   return classifierType || "—";
 }
 
+function letterProviderLabel(generatedBy: string): string {
+  if (generatedBy === "claude") return "Claude-drafted";
+  if (generatedBy === "groq") return "AI-drafted (Groq)";
+  return "Template";
+}
+
 export default function ViolationsPage() {
   const router = useRouter();
   const [session, setSession] = useState<SessionData | null>(loadSession());
@@ -257,8 +263,8 @@ export default function ViolationsPage() {
                 <>
                   <div className="mb-4 flex items-center gap-2">
                     <StatusBadge
-                      status={letter.generated_by === "claude" ? "Claude-drafted" : "Template"}
-                      type={letter.generated_by === "claude" ? "success" : "neutral"}
+                      status={letterProviderLabel(letter.generated_by)}
+                      type={letter.generated_by === "claude" || letter.generated_by === "groq" ? "success" : "neutral"}
                     />
                     <span className="text-xs font-semibold text-[var(--foreground-muted)]">{formatDateTime(letter.generated_at)}</span>
                   </div>
