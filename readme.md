@@ -1,133 +1,191 @@
-# VerifyShelf - 5-Day Recovery Plan
+# VerifyShelf
 
-This README is the shortest honest path from the current backend to a demo that matches the proposal without pretending the missing pieces already exist.
+Real-time brand protection and MAP (Minimum Advertised Price) violation detection for brands selling through third-party resellers on e-commerce marketplaces. Built for the *Proxy Maze '26* challenge, powered by residential/ISP proxy routing.
 
-## Current State
+A brand registers, lists its products with a MAP floor, and VerifyShelf crawls marketplace listings for those products, flags real reseller violations with a trained classifier, links repeat-offender sellers across storefront aliases, and drafts enforcement letters and weekly health reports — largely without a human doing the first pass.
 
-The backend already has:
+This README describes what's **actually implemented and verified**, not an aspirational roadmap. Where something is real vs. planned, it says so explicitly — that distinction matters a lot for a product whose whole premise is catching other people's misrepresentations.
 
-- FastAPI app wiring and CORS setup.
-- Bearer auth with brand registration, login, invite join, and admin approval flows.
-- Brand onboarding, user creation, invite management, promo windows, crawl jobs, and weekly reports.
-- A Daraz-only crawl loop with Celery scheduling, Redis, and MySQL persistence.
+---
 
-The backend is still missing the proposal-critical pieces:
+## 1. What's real today
 
-- Real Torch Proxies integration and sub-account provisioning.
-- Multi-marketplace support beyond Daraz LK.
-- Real scraping against live marketplace pages.
-- Violation classification, seller fingerprinting, and GPT-based enforcement generation.
-- Postgres / pgvector / TimescaleDB architecture.
-- Billing, evidence storage, and enforcement document automation.
+| Layer | Status | Detail |
+|---|---|---|
+| **Marketplace crawling** | ✅ Live | Daraz (Pakistan), via a real, working residential proxy, verified end-to-end against the live site — not a placeholder or mocked response. |
+| **Proxy routing** | ✅ Live | Per-brand deterministic session selection, health tracking with cooldown/rotation on repeated failures, and a non-geo-targeted overflow pool as a last resort. All raise a clear error rather than silently faking a connection. |
+| **ML violation classifier** | ✅ Live | Trained XGBoost model (real training pipeline, real/synthetic data split reported honestly) replaces a hardcoded confidence value. |
+| **Seller fingerprinting** | ✅ Live | Real `sentence-transformers` embeddings + cosine-similarity clustering link repeat offenders across storefront name changes — not string matching. |
+| **AI enforcement letters & reports** | ✅ Live | Claude first, [Groq](https://console.groq.com) free-tier as fallback, deterministic template as the last resort if neither LLM is configured. Whichever one actually generated the text is recorded honestly (`generated_by` / `narrative_source`), never assumed. |
+| **Role-based access** | ✅ Live | Three real logins: **superadmin** (platform-level brand approval, not scoped to any brand), **brand admin**, **brand analyst** — no shared secrets or static header keys anywhere. |
+| **Brand registration / approval** | ✅ Live | KYB-style application form (registration number, business address, industry, contact info, authorization attestation) reviewed by a superadmin before a brand gets access. |
+| **Promo override system** | ✅ Live | Brand-approved discount windows are excluded from violation detection, so a real sale doesn't get flagged as a violation. |
+| **Dashboards** | ✅ Live | Violations feed, seller-cluster view, crawl ops, weekly reports, invites — all in the Next.js frontend. |
+| **Multi-marketplace support** | 🚧 Roadmap | Amazon/Flipkart/Lazada/Tokopedia are registered in the schema and shown as "phase two" in the UI, but only Daraz actually crawls live. |
+| **Postgres/pgvector/TimescaleDB** | 🚧 Roadmap | Runs on MySQL today; embeddings are stored as JSON with in-process cosine similarity rather than a vector index. Deliberate scope call for now, not an oversight. |
+| **Deployment** | 🚧 Not done | Runs locally via Docker Compose. No hosting/CI pipeline yet. |
+| **Billing** | 🚧 Not done | Pricing tiers exist as a concept (Starter/Growth/Enterprise) but there's no Stripe/payment integration. |
 
-## What To Fix In 5 Days
+---
 
-The goal is not to build the full proposal in five days. The goal is to make the backend consistent, demoable, and defensible:
+## 2. Architecture
 
-1. Make the crawl pipeline real enough to prove localized marketplace monitoring.
-2. Add a violation decision layer so below-MAP events are explicit instead of implied.
-3. Add seller identity tracking so repeat offenders are visible.
-4. Add enforcement document output so violations can move to action.
-5. Clean up the docs and demo flow so the backend story matches the implementation.
+```
+                          ┌─────────────────────┐
+                          │   Next.js Frontend   │
+                          │  Dashboard · Violations│
+                          │  Sellers · Admin      │
+                          └──────────┬───────────┘
+                                     │ REST (Bearer token)
+                          ┌──────────▼───────────┐
+                          │   FastAPI Backend     │
+                          │  Routes → Services →  │
+                          │     Repositories      │
+                          └──────────┬───────────┘
+                                     │
+                 ┌───────────────────┼───────────────────┐
+                 ▼                   ▼                   ▼
+          ┌─────────────┐    ┌──────────────┐    ┌───────────────┐
+          │Celery + Redis│    │    MySQL     │    │  LLM providers│
+          │ Beat scheduler│   │  8.0         │    │ Claude → Groq │
+          └──────┬───────┘    └──────────────┘    │  → template   │
+                 │                                 └───────────────┘
+                 ▼
+          ┌─────────────┐     ┌───────────────┐
+          │ Proxy Router │────▶│ Daraz (real)  │
+          │ (health-aware│     │ ajax search   │
+          │  rotation)   │     │ API           │
+          └─────────────┘     └───────┬───────┘
+                                       │
+                          ┌────────────▼────────────┐
+                          │ XGBoost classifier +     │
+                          │ sentence-transformer     │
+                          │ seller fingerprinting    │
+                          └──────────────────────────┘
+```
 
-## 5-Day Plan
+**Request flow:** `Routes → Services → Repositories → MySQL` (the same layering throughout the backend).
 
-### Day 1 - Lock The Backend Scope
+**Crawl flow:** Celery Beat dispatches due brand/marketplace pairs on a schedule → a worker crawls the real Daraz ajax search API through a proxy resolved by brand+country → listings and price snapshots are persisted → the classifier scores each listing against the brand's MAP price (checking promo overrides first) → seller fingerprinting resolves/links the seller → violations, if any, land in the dashboard.
 
-- Freeze the canonical backend scope to one active marketplace and one target country if time is tight.
-- Decide whether the first live marketplace is Daraz or a second marketplace with weaker anti-bot friction.
-- Define the minimum viable entities: brands, products, sellers, listings, price snapshots, violations, promo windows, crawl jobs.
-- Add any missing seed data so a fresh database boots with one brand, one product, one seller, and one marketplace.
+---
 
-### Day 2 - Make Crawling Real
+## 3. Tech stack
 
-- Replace the demo crawl adapter with live HTTP or Playwright scraping for the first marketplace.
-- Route all crawler requests through `get_proxy_config()` so proxy support is no longer a no-op.
-- Persist raw listing data, normalized listings, and snapshots in one pass.
-- Add error handling that distinguishes proxy failures, parse failures, and upstream marketplace blocks.
+| Layer | Choice | Why |
+|---|---|---|
+| Backend API | FastAPI (Python 3.11) | Async, typed, fast to iterate |
+| Database | MySQL 8.0 | See note above on Postgres/pgvector — deliberate scope call |
+| Task queue | Celery 5 + Redis 7 | Scheduled crawling, Flower for monitoring |
+| Frontend | Next.js (App Router) + Tailwind | Token-based sessions (localStorage), no server-side auth middleware |
+| ML | XGBoost, `sentence-transformers` (`all-MiniLM-L6-v2`), scikit-learn | Real trained models, not rule-only heuristics |
+| LLM | Anthropic Claude (primary), Groq (free-tier fallback) | Honest fallback chain, not a single hardcoded provider |
+| PDF export | ReportLab | Pure-Python, no system dependency (deliberately not WeasyPrint/Puppeteer) |
+| Auth | bcrypt + custom HMAC-signed tokens | No unsalted hashes, no hardcoded secrets — the app refuses to start without real ones |
+| Proxy | Residential + ISP pools via env-configured credentials | Real geo-targeted routing, not a mocked layer |
 
-### Day 3 - Add Violation Logic
+---
 
-- Implement a backend rule that compares advertised price against MAP price and checks promo overrides first.
-- Store violations explicitly in the database instead of burying them inside reports.
-- Return a severity, status, and confidence field so the frontend can show real triage states.
-- Add unit tests for the promo override path, below-MAP detection, and false-positive suppression.
+## 4. Getting started
 
-### Day 4 - Add Identity And Enforcement
+### Prerequisites
+- Docker + Docker Compose
+- Python 3.11 (for running tests/scripts locally, outside containers)
+- Node 20 (for frontend dev outside containers)
 
-- Add seller fingerprinting at a pragmatic MVP level, even if it starts as heuristic clustering instead of full ML.
-- Store seller signatures and linkage results so repeated storefronts can be surfaced across crawls.
-- Generate an enforcement payload from violation data so takedown text is produced from structured context.
-- If GPT-4o is not ready, use a deterministic template first and keep the interface compatible with a future model call.
+### 1. Environment
+Copy `.env_example` to `.env` and fill in real values. Two things are **required** — the app refuses to start without them:
+- `AUTH_SECRET` — generate with `python -c "import secrets; print(secrets.token_urlsafe(48))"`
+- MySQL credentials
 
-### Day 5 - Stabilize And Document
+Everything else degrades gracefully if left unset:
+- No `ANTHROPIC_API_KEY`/`GROQ_API_KEY` → enforcement letters and reports fall back to a deterministic template
+- No `PROXY_POOL_*` for a given country → that country's crawls fail loudly with a clear `no_proxy_configured` error instead of faking success
 
-- Run the crawl, violation, promo, report, and enforcement flow end to end.
-- Harden the scheduler so job state transitions are consistent and failures are visible.
-- Update the README, backend docs, and demo script to describe what is actually live.
-- Record the remaining gaps as phase-two items instead of letting them blur the current demo story.
+### 2. Start everything
+```powershell
+docker compose up -d
+```
 
-**Day 5 completed:**
-- Weekly report service made robust against legacy plain-text `report_content` rows.
-- `run_brand_crawl` wrapped in a top-level `try/except` so any unhandled error marks the crawl job `failed` instead of leaving it stuck in `running`.
-- Celery dispatch loop wraps each `run_brand_crawl.delay()` call; broker failures mark the queued job `failed` immediately.
-- `scripts/demo_flow.py` added: runs login → crawl → violation check → promo override → weekly report → enforcement letter → cleanup end-to-end against the live database.
-- All 33 unit tests green after refactoring.
-- Docker images rebuilt and all three services restarted successfully.
+### 3. Run migrations
+```powershell
+docker exec fastapi_backend alembic upgrade head
+```
 
-## Priority Order
+### 4. Seed demo data
+```powershell
+Get-Content backend\database\seed_daraz_mvp.sql | docker exec -i mysql_db mysql -uroot -p<password> verifishelf
+```
+This seeds a demo brand routed through a real Daraz-PK proxy pool, plus a **superadmin** account (`superadmin@verifishelf.local`) for reviewing brand approvals. See `backend/readme.md` for all seeded credentials.
 
-If time slips, do not spread effort across everything evenly. Use this order:
+### 5. Verify
+| Service | URL |
+|---|---|
+| API | http://localhost:8000 |
+| API docs (Swagger) | http://localhost:8000/docs |
+| Health check | http://localhost:8000/health |
+| Flower (Celery monitoring) | http://localhost:5555 |
+| Frontend | http://localhost:3000 |
 
-1. Live crawl + proxy routing.
-2. Explicit violation detection.
-3. Promo window override enforcement.
-4. Seller identity tracking.
-5. Enforcement document generation.
-6. Documentation cleanup.
+### 6. Run tests
+```powershell
+cd backend
+python -m unittest discover -s tests -p "test_*.py"
+```
+44 tests, all passing.
 
-## What Not To Attempt In The Next 5 Days
+```powershell
+cd frontend
+npx tsc --noEmit   # typecheck
+npx next build     # production build
+```
 
-- Do not migrate the whole backend to PostgreSQL unless there is a separate reason beyond the demo.
-- Do not try to ship six fully live marketplaces.
-- Do not spend time on billing unless the demo absolutely needs checkout.
-- Do not fine-tune large ML models if a deterministic rule or lightweight classifier will get you to a credible demo faster.
+---
 
-## Backend Reality Check
+## 5. Role model
 
-Based on the current codebase, the existing backend is already good enough to support an honest MVP demo for auth, onboarding, promos, reports, and crawl job tracking. The weak point is the intelligence layer and the marketplace layer.
+| Role | Scope | What they can do |
+|---|---|---|
+| **superadmin** | Platform-wide, not tied to any brand | Review/approve/reject/request-info on new brand registrations. Nothing else — no brand dashboard, no violations, since there's no brand to scope those to. |
+| **admin** | One brand | Everything an analyst can (below), plus: complete brand onboarding, create team members, manage invites, create promo windows, generate enforcement letters. |
+| **analyst** | One brand | View violations, seller clusters, reports, crawl history. Cannot create promo windows (would let anyone quietly suppress violation detection with no sign-off) or generate enforcement letters (an external-facing action taken in the brand's name) — both require admin. |
 
-That means the fastest path is to make the backend output three things reliably:
+New team members join a brand via admin-issued, hashed, expiring invite codes (`/join?code=...`), not open self-registration.
 
-- What was crawled.
-- Why it is a violation.
-- What action should happen next.
+---
 
-If the backend can do those three things by day 5, the rest of the proposal becomes a story of extension rather than a story of missing fundamentals.
+## 6. Project structure
 
-## Day 4 APIs
+```
+verifishelf/
+├── backend/
+│   ├── app/
+│   │   ├── api/routes/       # FastAPI routers (auth, admin, violations, enforcement, ...)
+│   │   ├── services/         # Business logic (crawl, violation scoring, LLM drafting, ...)
+│   │   ├── repositories/     # Raw SQL data access
+│   │   ├── schemas/          # Pydantic request/response models
+│   │   ├── adapters/         # Marketplace adapters (Daraz live; others are stubs)
+│   │   ├── ml/                # Feature engineering, dataset building, classifier training
+│   │   ├── core/              # Auth, DB, proxy routing, Celery config
+│   │   └── tasks/             # Celery task definitions
+│   ├── alembic/versions/      # Schema migrations (0001-0005)
+│   ├── database/              # Consolidated schema + seed SQL
+│   ├── scripts/                # Diagnostic/demo scripts (proxy smoke test, network exploration, ...)
+│   ├── tests/                  # 44 unit tests
+│   └── readme.md               # Full backend API reference
+├── frontend/
+│   └── app/(dashboard)/         # Next.js App Router pages (dashboard, violations, sellers, admin, ...)
+├── HACKATHON_4_DAY_PLAN.md      # Execution plan this build followed
+└── DEMO_SCRIPT.md               # Live demo walkthrough
+```
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| `GET` | `/sellers/clusters` | Bearer | Heuristic seller clusters + open violation counts |
-| `POST` | `/enforcement/violations/{id}` | Bearer | Generate enforcement letter from violation context |
-| `GET` | `/enforcement/violations/{id}` | Bearer | Fetch latest enforcement letter |
+See **[`backend/readme.md`](backend/readme.md)** for the full API reference, environment variable list, and database schema.
 
-## Minimum Demo Checklist
+---
 
-- [x] One live crawl path through proxy abstraction.
-- [x] One explicit violation record per below-MAP listing.
-- [x] Promo window override working.
-- [x] Seller repeat-offender linkage visible.
-- [x] One enforcement document generated from violation context.
-- [x] Weekly report still works after the new violation path lands.
-- [x] README and demo notes describe the real backend, not the aspirational one.
+## 7. Honesty notes (things worth knowing before you dig in)
 
-## Phase-Two Items (Not In This Sprint)
-
-- PostgreSQL / pgvector / TimescaleDB migration.
-- GPT-4o enforcement letter generation (interface is already compatible — swap `build_template_letter` for a model call).
-- Six fully live marketplaces beyond Daraz LK.
-- Full ML-based seller fingerprinting (heuristic rules are live; embeddings column exists in `sellers` table).
-- Billing and checkout integration.
-- Torch Proxies sub-account provisioning (proxy pool config from env vars is wired; `get_proxy_config()` just needs the Torch API call added).
+- **Only Daraz is live.** The other four marketplaces are registered in the database and shown in the UI as "phase two" — there is no scraper for them yet. Don't be surprised if the code only has one working adapter.
+- **The proxy layer is real, not mocked** — this was verified by direct testing against the live Daraz PK site, including discovering that a plain page load returns an empty JS shell with no listing data at all, which is why the adapter calls Daraz's own internal ajax search endpoint instead.
+- **Seller "account age" is a proxy, not the marketplace's real signal** — it's "how long we've been tracking this seller," since Daraz doesn't expose real registration dates. This is documented in the code, not hidden.
+- **MySQL, not the originally-proposed Postgres/pgvector/TimescaleDB stack.** A deliberate scope decision to avoid a risky mid-project database migration, not an oversight.
