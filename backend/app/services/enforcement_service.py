@@ -1,5 +1,6 @@
 from app.repositories.enforcement_letter_repository import EnforcementLetterRepository
 from app.services import llm_client
+from app.services.screenshot_service import capture_listing_screenshot
 
 
 class EnforcementService:
@@ -91,10 +92,17 @@ class EnforcementService:
             letter_content = cls.build_template_letter(context)
             generated_by = cls.PROVIDER_TEMPLATE
 
+        screenshot_base64 = await capture_listing_screenshot(
+            listing_url=context.get("listing_url"),
+            country_code=context.get("country_code"),
+            brand_sub_id=context.get("torch_sub_id"),
+        )
+
         return await EnforcementLetterRepository.create_letter(
             violation_id=violation_id,
             letter_content=letter_content,
             generated_by=generated_by,
+            screenshot_base64=screenshot_base64,
         )
 
     @classmethod

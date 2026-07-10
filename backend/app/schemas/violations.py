@@ -35,6 +35,7 @@ class EnforcementLetterResponse(BaseModel):
     violation_id: int
     letter_content: str
     generated_by: str
+    screenshot_base64: str | None = None
     generated_at: datetime
 
 

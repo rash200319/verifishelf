@@ -288,6 +288,18 @@ export default function ViolationsPage() {
                     />
                     <span className="text-xs font-medium text-[var(--foreground-muted)]">{formatDateTime(letter.generated_at)}</span>
                   </div>
+                  {letter.screenshot_base64 ? (
+                    <div className="mb-4">
+                      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
+                        Listing evidence (live headless-browser capture)
+                      </p>
+                      <img
+                        src={`data:image/png;base64,${letter.screenshot_base64}`}
+                        alt="Screenshot of the violating listing page"
+                        className="w-full rounded-[var(--radius-md)] border border-[var(--border)]"
+                      />
+                    </div>
+                  ) : null}
                   <pre className="whitespace-pre-wrap rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-4 text-sm leading-6 text-[var(--foreground)]">
                     {letter.letter_content}
                   </pre>

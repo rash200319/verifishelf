@@ -264,6 +264,12 @@ CREATE TABLE enforcement_letters (
 
     generated_by VARCHAR(50) DEFAULT 'gpt4o',
 
+    -- Base64 PNG from a real headless-browser (Playwright) screenshot of the
+    -- violating listing page, captured through the same Torch proxy pool as
+    -- the crawl itself. NULL if capture failed or was skipped -- best-effort,
+    -- never blocks letter generation (see services/screenshot_service.py).
+    screenshot_base64 LONGTEXT NULL,
+
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (violation_id)

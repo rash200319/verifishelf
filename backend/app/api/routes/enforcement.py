@@ -13,6 +13,7 @@ def _format_letter(letter: dict) -> EnforcementLetterResponse:
         violation_id=letter["violation_id"],
         letter_content=letter["letter_content"],
         generated_by=letter["generated_by"],
+        screenshot_base64=letter.get("screenshot_base64"),
         generated_at=letter["generated_at"],
     )
 

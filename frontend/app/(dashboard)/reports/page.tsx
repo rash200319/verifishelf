@@ -155,6 +155,19 @@ export default function ReportsPage() {
                   {formatDateTime(selectedReport.generated_at)} · {selectedReport.report_start_date} to {selectedReport.report_end_date}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{selectedReport.narrative}</p>
+                {selectedReport.top_offending_sellers?.length ? (
+                  <div className="mt-3 space-y-1.5 border-t border-[var(--border)] pt-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
+                      Top offending sellers
+                    </p>
+                    {selectedReport.top_offending_sellers.map((seller) => (
+                      <div key={seller.seller_id} className="flex items-center justify-between gap-2 text-sm text-[var(--foreground)]">
+                        <span>{seller.seller_name}</span>
+                        <span className="text-xs font-medium text-[var(--foreground-muted)]">{seller.violation_count} violation(s)</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ) : (
               <p className="text-sm leading-6 text-[var(--foreground-muted)]">No report selected yet.</p>

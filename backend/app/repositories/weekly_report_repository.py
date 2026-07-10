@@ -163,6 +163,56 @@ class WeeklyReportRepository:
                 )
                 products = await cur.fetchall()
 
+                await cur.execute(
+                    """
+                    SELECT
+                        s.id AS seller_id,
+                        s.seller_name,
+                        COUNT(*) AS violation_count,
+                        (
+                            SELECT l2.listing_url
+                            FROM violations v2
+                            INNER JOIN listings l2 ON l2.id = v2.listing_id
+                            WHERE l2.seller_id = s.id
+                              AND v2.detected_at BETWEEN %s AND %s
+                            ORDER BY v2.detected_at DESC
+                            LIMIT 1
+                        ) AS listing_url
+                    FROM violations v
+                    INNER JOIN listings l ON l.id = v.listing_id
+                    INNER JOIN products p ON p.id = l.product_id
+                    INNER JOIN sellers s ON s.id = l.seller_id
+                    WHERE p.brand_id = %s
+                      AND v.detected_at BETWEEN %s AND %s
+                    GROUP BY s.id, s.seller_name
+                    ORDER BY violation_count DESC
+                    LIMIT 5
+                    """,
+                    (start_dt, end_dt, brand_id, start_dt, end_dt),
+                )
+                top_offending_sellers = await cur.fetchall()
+
+                # "Repeat offender" = a seller violating this brand's MAP more
+                # than once ever (all-time, not scoped to the report period) --
+                # the whole point is flagging sellers who keep coming back.
+                await cur.execute(
+                    """
+                    SELECT COUNT(*) AS repeat_offenders
+                    FROM (
+                        SELECT s.id
+                        FROM violations v
+                        INNER JOIN listings l ON l.id = v.listing_id
+                        INNER JOIN products p ON p.id = l.product_id
+                        INNER JOIN sellers s ON s.id = l.seller_id
+                        WHERE p.brand_id = %s
+                        GROUP BY s.id
+                        HAVING COUNT(*) > 1
+                    ) AS repeat_sellers
+                    """,
+                    (brand_id,),
+                )
+                repeat_offenders = int((await cur.fetchone())["repeat_offenders"])
+
         return {
             "summary": {
                 "listings_monitored": listings_monitored,
@@ -170,6 +220,8 @@ class WeeklyReportRepository:
                 "violations_detected": violations_detected,
                 "violations_open": violations_open,
                 "active_promo_windows": active_promo_windows,
+                "repeat_offenders": repeat_offenders,
             },
             "products": products,
+            "top_offending_sellers": top_offending_sellers,
         }

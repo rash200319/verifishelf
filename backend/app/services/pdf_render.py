@@ -48,6 +48,7 @@ def render_weekly_report_pdf(brand_name: str, report: dict) -> bytes:
         ["Violations detected", str(summary.get("violations_detected", 0))],
         ["Violations still open", str(summary.get("violations_open", 0))],
         ["Active promo windows", str(summary.get("active_promo_windows", 0))],
+        ["Repeat offenders", str(summary.get("repeat_offenders", 0))],
     ]
     summary_table = Table(summary_rows, colWidths=[3 * inch, 2 * inch])
     summary_table.setStyle(
@@ -93,6 +94,34 @@ def render_weekly_report_pdf(brand_name: str, report: dict) -> bytes:
         )
         story.append(Paragraph("Product Highlights", section_style))
         story.append(product_table)
+
+    top_offending_sellers = report.get("top_offending_sellers") or []
+    if top_offending_sellers:
+        seller_rows = [["Seller", "Violations", "Listing"]]
+        for seller in top_offending_sellers:
+            seller_rows.append(
+                [
+                    seller.get("seller_name", ""),
+                    str(seller.get("violation_count", 0)),
+                    seller.get("listing_url") or "n/a",
+                ]
+            )
+        seller_table = Table(seller_rows, colWidths=[1.8 * inch, 1 * inch, 3.2 * inch])
+        seller_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+        story.append(Paragraph("Top Offending Sellers", section_style))
+        story.append(seller_table)
 
     narrative = (report.get("narrative") or "").strip()
     if narrative:
