@@ -7,6 +7,20 @@ from app.services import llm_client
 
 
 class WeeklyReportService:
+    # Fallback values for reports generated before report_content was a
+    # structured JSON payload (or any row whose summary is otherwise
+    # incomplete) -- merged under content["summary"] so a legacy/partial
+    # row renders with zeros instead of failing WeeklyReportResponse's
+    # required-field validation for the whole brand's report list.
+    _EMPTY_SUMMARY = {
+        "listings_monitored": 0,
+        "price_snapshots": 0,
+        "violations_detected": 0,
+        "violations_open": 0,
+        "active_promo_windows": 0,
+        "repeat_offenders": 0,
+    }
+
     NARRATIVE_SYSTEM_PROMPT = (
         "You are a brand-protection analyst writing a weekly MAP-monitoring "
         "report for a client brand. Write 2-4 short paragraphs of plain-English "
@@ -30,18 +44,21 @@ class WeeklyReportService:
 
     @classmethod
     def _build_narrative_with_llm(
-        cls, brand_name: str, start_date: date, end_date: date, summary: dict, products: list
+        cls, brand_name: str, start_date: date, end_date: date, summary: dict, products: list, top_offending_sellers: list | None = None
     ) -> tuple[str, str] | None:
         prompt = (
             f"Brand: {brand_name}\n"
             f"Period: {start_date.isoformat()} to {end_date.isoformat()}\n"
             f"Summary: {json.dumps(summary)}\n"
             f"Product stats: {json.dumps(products)}\n"
+            f"Top offending sellers: {json.dumps(top_offending_sellers or [])}\n"
         )
         return llm_client.generate_text(cls.NARRATIVE_SYSTEM_PROMPT, prompt, max_tokens=500)
 
     @staticmethod
-    def _build_narrative(brand_name: str, start_date: date, end_date: date, summary: dict, products: list) -> str:
+    def _build_narrative(
+        brand_name: str, start_date: date, end_date: date, summary: dict, products: list, top_offending_sellers: list | None = None
+    ) -> str:
         lines = [
             f"Weekly MAP monitoring report for {brand_name}",
             f"Period: {start_date.isoformat()} to {end_date.isoformat()}",
@@ -50,7 +67,17 @@ class WeeklyReportService:
             f"Price snapshots captured: {summary['price_snapshots']}",
             f"Violations detected: {summary['violations_detected']} ({summary['violations_open']} still open)",
             f"Active promo windows overlapping this period: {summary['active_promo_windows']}",
+            f"Repeat offenders (sellers with more than one violation on record): {summary['repeat_offenders']}",
         ]
+
+        if top_offending_sellers:
+            lines.append("")
+            lines.append("Top offending sellers this period:")
+            for seller in top_offending_sellers:
+                lines.append(
+                    f"- {seller['seller_name']}: {seller['violation_count']} violation(s)"
+                    + (f" -- {seller['listing_url']}" if seller.get("listing_url") else "")
+                )
 
         if products:
             lines.append("")
@@ -61,16 +88,26 @@ class WeeklyReportService:
                 latest_price = WeeklyReportService._to_float(product.get("latest_price"))
                 avg_text = f"{avg_price:.2f}" if avg_price is not None else "n/a"
                 latest_text = f"{latest_price:.2f}" if latest_price is not None else "n/a"
+                drift_pct = product.get("price_drift_pct")
+                drift_text = f"{drift_pct:+.1f}% over 90 days" if drift_pct is not None else "90-day trend: n/a"
                 lines.append(
                     f"- {product['product_name']}: MAP {map_price:.2f}, "
                     f"avg observed {avg_text}, latest {latest_text}, "
-                    f"{int(product.get('snapshot_count') or 0)} snapshots"
+                    f"{int(product.get('snapshot_count') or 0)} snapshots, price drift {drift_text}"
                 )
 
         return "\n".join(lines)
 
     @staticmethod
+    def _compute_price_drift_pct(price_90d_start: float | None, price_90d_end: float | None) -> float | None:
+        if price_90d_start is None or price_90d_end is None or price_90d_start == 0:
+            return None
+        return round((price_90d_end - price_90d_start) / price_90d_start * 100, 2)
+
+    @staticmethod
     def _serialize_product_row(row: dict) -> dict:
+        price_90d_start = WeeklyReportService._to_float(row.get("price_90d_start"))
+        price_90d_end = WeeklyReportService._to_float(row.get("price_90d_end"))
         return {
             "product_id": int(row["product_id"]),
             "product_name": row["product_name"],
@@ -78,23 +115,37 @@ class WeeklyReportService:
             "avg_observed_price": WeeklyReportService._to_float(row.get("avg_observed_price")),
             "snapshot_count": int(row.get("snapshot_count") or 0),
             "latest_price": WeeklyReportService._to_float(row.get("latest_price")),
+            "price_90d_start": price_90d_start,
+            "price_90d_end": price_90d_end,
+            "price_drift_pct": WeeklyReportService._compute_price_drift_pct(price_90d_start, price_90d_end),
+        }
+
+    @staticmethod
+    def _serialize_seller_row(row: dict) -> dict:
+        return {
+            "seller_id": int(row["seller_id"]),
+            "seller_name": row["seller_name"],
+            "violation_count": int(row["violation_count"]),
+            "listing_url": row.get("listing_url"),
         }
 
     @classmethod
     def _build_report_payload(cls, brand_name: str, start_date: date, end_date: date, metrics: dict) -> dict:
         summary = metrics["summary"]
         products = [cls._serialize_product_row(row) for row in metrics["products"]]
+        top_offending_sellers = [cls._serialize_seller_row(row) for row in metrics.get("top_offending_sellers", [])]
 
-        llm_result = cls._build_narrative_with_llm(brand_name, start_date, end_date, summary, products)
+        llm_result = cls._build_narrative_with_llm(brand_name, start_date, end_date, summary, products, top_offending_sellers)
         if llm_result is not None:
             narrative, narrative_source = llm_result
         else:
-            narrative = cls._build_narrative(brand_name, start_date, end_date, summary, products)
+            narrative = cls._build_narrative(brand_name, start_date, end_date, summary, products, top_offending_sellers)
             narrative_source = "rule_based"
 
         return {
             "summary": summary,
             "products": products,
+            "top_offending_sellers": top_offending_sellers,
             "narrative": narrative,
             "narrative_source": narrative_source,
         }
@@ -116,8 +167,9 @@ class WeeklyReportService:
             "brand_id": row["brand_id"],
             "report_start_date": row["report_start_date"],
             "report_end_date": row["report_end_date"],
-            "summary": content.get("summary", {}),
+            "summary": {**WeeklyReportService._EMPTY_SUMMARY, **content.get("summary", {})},
             "products": content.get("products", []),
+            "top_offending_sellers": content.get("top_offending_sellers", []),
             "narrative": content.get("narrative", ""),
             "narrative_source": content.get("narrative_source", "rule_based"),
             "generated_at": row["generated_at"],

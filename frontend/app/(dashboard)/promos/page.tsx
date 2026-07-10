@@ -121,53 +121,53 @@ export default function PromosPage() {
 
   return (
     <section className="space-y-8 pb-10">
-      <div className="max-w-4xl space-y-3">
-        <p className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--foreground-muted)]">Promo calendar</p>
-        <h2 className="text-4xl font-extrabold tracking-[-0.04em] text-[var(--foreground)] sm:text-5xl">Manage approved promo windows.</h2>
-        <p className="max-w-3xl text-lg leading-8 text-[var(--foreground-muted)]">
+      <div className="max-w-3xl space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Promo calendar</p>
+        <h2 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">Manage approved promo windows.</h2>
+        <p className="max-w-2xl text-base leading-6 text-[var(--foreground-muted)]">
           Promo windows keep the MAP workflow honest by excluding approved discounts from violation reports.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <Card>
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
-              <PlusCircle className="h-7 w-7 text-[var(--accent)]" strokeWidth={1.8} />
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--accent-soft)]">
+              <PlusCircle className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
             </div>
             <div>
-              <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Create promo</p>
-              <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Add a new approved discount window.</h3>
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Create promo</p>
+              <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-[var(--foreground)]">Add a new approved discount window.</h3>
             </div>
           </div>
 
-          <form className="mt-6 space-y-4" onSubmit={createPromo}>
+          <form className="mt-5 space-y-4" onSubmit={createPromo}>
             <div className="space-y-1.5 text-left">
-              <label htmlFor="product-id-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
+              <label htmlFor="product-id-input" className="text-xs font-medium text-[var(--foreground-muted)]">
                 Product ID
               </label>
               <DataInput id="product-id-input" value={productId} onChange={(event) => setProductId(event.target.value)} placeholder="e.g. 101" required aria-label="Product ID" />
             </div>
             <div className="space-y-1.5 text-left">
-              <label htmlFor="marketplace-id-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
+              <label htmlFor="marketplace-id-input" className="text-xs font-medium text-[var(--foreground-muted)]">
                 Marketplace ID (optional)
               </label>
               <DataInput id="marketplace-id-input" value={marketplaceId} onChange={(event) => setMarketplaceId(event.target.value)} placeholder="Leave blank for all" aria-label="Marketplace ID" />
             </div>
             <div className="space-y-1.5 text-left">
-              <label htmlFor="promo-start-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
+              <label htmlFor="promo-start-input" className="text-xs font-medium text-[var(--foreground-muted)]">
                 Start Date
               </label>
               <DataInput id="promo-start-input" value={startDate} onChange={(event) => setStartDate(event.target.value)} type="date" required aria-label="Start date" />
             </div>
             <div className="space-y-1.5 text-left">
-              <label htmlFor="promo-end-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
+              <label htmlFor="promo-end-input" className="text-xs font-medium text-[var(--foreground-muted)]">
                 End Date
               </label>
               <DataInput id="promo-end-input" value={endDate} onChange={(event) => setEndDate(event.target.value)} type="date" required aria-label="End date" />
             </div>
             <div className="space-y-1.5 text-left">
-              <label htmlFor="promo-notes-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
+              <label htmlFor="promo-notes-input" className="text-xs font-medium text-[var(--foreground-muted)]">
                 Notes
               </label>
               <DataInput id="promo-notes-input" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Reason or internal notes" aria-label="Promo notes" />
@@ -177,28 +177,28 @@ export default function PromosPage() {
             </TactileButton>
           </form>
 
-          {success ? <p className="mt-4 text-sm leading-6 text-[var(--status-success-text)] font-semibold">{success}</p> : null}
-          {error ? <p className="mt-4 text-sm leading-6 text-[var(--status-error-text)] font-semibold">{error}</p> : null}
+          {success ? <p className="mt-4 text-sm font-medium text-[var(--status-success-text)]">{success}</p> : null}
+          {error ? <p className="mt-4 text-sm font-medium text-[var(--status-error-text)]">{error}</p> : null}
         </Card>
 
         <Card>
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
-              <CalendarDays className="h-7 w-7 text-[var(--accent)]" strokeWidth={1.8} />
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--accent-soft)]">
+              <CalendarDays className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
             </div>
             <div>
-              <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Filtered list</p>
-              <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Browse the brand promo history.</h3>
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Filtered list</p>
+              <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-[var(--foreground)]">Browse the brand promo history.</h3>
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <div className="space-y-1 text-left">
-               <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Product</label>
+               <label className="text-xs font-medium text-[var(--foreground-muted)]">Product</label>
                <DataInput value={filterProductId} onChange={(event) => setFilterProductId(event.target.value)} placeholder="Filter ID" aria-label="Filter by product" />
             </div>
             <div className="space-y-1 text-left">
-               <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Active On</label>
+               <label className="text-xs font-medium text-[var(--foreground-muted)]">Active On</label>
                <DataInput value={activeOn} onChange={(event) => setActiveOn(event.target.value)} type="date" aria-label="Filter active on" />
             </div>
             <div className="flex items-end">
@@ -208,10 +208,10 @@ export default function PromosPage() {
             </div>
           </div>
 
-          <div className="mt-8 space-y-3 pt-6 border-t border-[rgba(148,163,184,0.2)]">
-            <div className="rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] flex justify-between items-center">
-              <p className="text-sm font-bold text-[var(--foreground)]">Active windows right now</p>
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-foreground)] font-bold shadow-[var(--shadow-sharp)]">
+          <div className="mt-6 space-y-2.5 pt-5 border-t border-[var(--border)]">
+            <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-4 flex justify-between items-center">
+              <p className="text-sm font-medium text-[var(--foreground)]">Active windows right now</p>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-foreground)] text-sm font-semibold">
                 {activeCount}
               </span>
             </div>
@@ -220,24 +220,24 @@ export default function PromosPage() {
               <LoadingState text="Loading promos..." />
             ) : promos.length ? (
               promos.map((promo) => (
-                <div key={promo.id} className="rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] transition hover:-translate-y-0.5 hover:bg-[var(--bg-inner-hover)]">
+                <div key={promo.id} className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-4 transition-colors hover:border-[var(--accent)]/40">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-[var(--foreground)]">Product {promo.product_id}</p>
+                      <p className="text-sm font-semibold text-[var(--foreground)]">Product {promo.product_id}</p>
                       {isPromoActive(promo) ? (
                         <StatusBadge status="Active" type="success" />
                       ) : (
                         <StatusBadge status="Inactive" type="neutral" />
                       )}
                     </div>
-                    <span className="rounded-full bg-[rgba(148,163,184,0.15)] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)]">
+                    <span className="rounded-full bg-[var(--panel)] border border-[var(--border)] px-2.5 py-0.5 text-xs font-medium text-[var(--foreground-muted)]">
                       {promo.marketplace_id ?? "All marketplaces"}
                     </span>
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-[var(--foreground-muted)]">
-                    <span className="font-semibold text-[var(--foreground)]">Window:</span> {formatDate(promo.start_date)} to {formatDate(promo.end_date)}
+                  <p className="mt-2.5 text-sm leading-6 text-[var(--foreground-muted)]">
+                    <span className="font-medium text-[var(--foreground)]">Window:</span> {formatDate(promo.start_date)} to {formatDate(promo.end_date)}
                   </p>
-                  {promo.notes ? <p className="mt-1 text-sm leading-6 text-[var(--foreground-muted)]"><span className="font-semibold text-[var(--foreground)]">Notes:</span> {promo.notes}</p> : null}
+                  {promo.notes ? <p className="mt-1 text-sm leading-6 text-[var(--foreground-muted)]"><span className="font-medium text-[var(--foreground)]">Notes:</span> {promo.notes}</p> : null}
                 </div>
               ))
             ) : (
@@ -249,9 +249,9 @@ export default function PromosPage() {
 
       <Card>
         <div className="flex items-start gap-3">
-          <CheckCircle2 className="mt-0.5 h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
+          <CheckCircle2 className="mt-0.5 h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
           <div>
-            <p className="text-sm font-bold text-[var(--foreground)]">Why this matters</p>
+            <p className="text-sm font-semibold text-[var(--foreground)]">Why this matters</p>
             <p className="mt-1 text-sm leading-6 text-[var(--foreground-muted)]">
               Promo windows are checked by the backend before price violations are flagged, so the dashboard keeps approved discounts out of enforcement noise.
             </p>

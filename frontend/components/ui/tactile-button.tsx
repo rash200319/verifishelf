@@ -15,16 +15,16 @@ type AnchorProps = SharedProps & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "
 function variantClassName(variant: Variant) {
   switch (variant) {
     case "primary":
-      return "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-[4px_4px_8px_rgba(79,70,229,0.35),-4px_-4px_8px_rgba(120,110,255,0.25)] hover:brightness-105";
+      return "border border-transparent bg-[var(--accent)] text-[var(--accent-foreground)] hover:bg-[var(--accent-hover)]";
     case "ghost":
-      return "bg-transparent text-[var(--foreground-muted)] hover:bg-[rgba(255,255,255,0.7)] hover:text-[var(--foreground)] hover:shadow-[var(--shadow-recessed)]";
+      return "border border-transparent bg-transparent text-[var(--foreground-muted)] hover:bg-[var(--panel-muted)] hover:text-[var(--foreground)]";
     default:
-      return "bg-[var(--background)] text-[var(--foreground)] shadow-[var(--shadow-card)] hover:text-[var(--accent)]";
+      return "border border-[var(--border)] bg-[var(--panel)] text-[var(--foreground)] hover:border-[var(--border-strong)] hover:bg-[var(--panel-muted)]";
   }
 }
 
 const sharedClasses =
-  "inline-flex min-h-12 items-center justify-center rounded-[var(--radius-lg)] px-5 py-3 text-sm font-semibold transition-all duration-200 ease-out active:translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
+  "inline-flex min-h-10 items-center justify-center rounded-[var(--radius-md)] px-4 py-2.5 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
 
 export function TactileButton(props: ButtonProps): ReactElement;
 export function TactileButton(props: AnchorProps): ReactElement;

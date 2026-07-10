@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Building2, CheckCircle2, KeyRound, PlusCircle, ShieldCheck, UserPlus, Check, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DataInput } from "@/components/ui/data-input";
+import { Select } from "@/components/ui/select";
 import { TactileButton } from "@/components/ui/tactile-button";
 import { apiRequest } from "@/lib/api";
 import type { BrandOnboardResponse, CreateUserResponse, SessionData, PendingBrand, PendingBrandsResponse } from "@/lib/backend-types";
@@ -181,12 +182,12 @@ export default function AdminPage() {
     return (
       <section className="space-y-6 pb-10">
         <Card>
-          <p className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--foreground-muted)]">Access restricted</p>
-          <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Admin access required.</h2>
-          <p className="mt-3 max-w-2xl text-lg leading-8 text-[var(--foreground-muted)]">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Access restricted</p>
+          <h2 className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--foreground)]">Admin access required.</h2>
+          <p className="mt-2 max-w-xl text-base leading-6 text-[var(--foreground-muted)]">
             Sign in with an admin account to access this page.
           </p>
-          <div className="mt-6">
+          <div className="mt-5">
             <TactileButton variant="primary" onClick={signOut}>
               Back to login
             </TactileButton>
@@ -200,41 +201,41 @@ export default function AdminPage() {
 
   return (
     <section className="space-y-8 pb-10">
-      <div className="max-w-4xl space-y-3">
-        <p className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--foreground-muted)]">
+      <div className="max-w-3xl space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
           {isTorchproxyAdmin ? "TorchProxy console" : "Brand admin console"}
         </p>
-        <h2 className="text-4xl font-extrabold tracking-[-0.04em] text-[var(--foreground)] sm:text-5xl">
+        <h2 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
           {isTorchproxyAdmin ? "Review and approve brand registrations." : "Onboard your brand to VerifyShelf."}
         </h2>
-        <p className="max-w-3xl text-lg leading-8 text-[var(--foreground-muted)]">
-          {isTorchproxyAdmin 
+        <p className="max-w-2xl text-base leading-6 text-[var(--foreground-muted)]">
+          {isTorchproxyAdmin
             ? "Review pending brand applications and approve them for platform access."
             : "Complete your brand onboarding to start monitoring MAP compliance across marketplaces."
           }
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
         {[
           { icon: ShieldCheck, title: "Admin token", detail: `Signed in as ${currentSession.email ?? currentSession.brand_name}` },
           ...(isTorchproxyAdmin ? [{ icon: Building2, title: "Brand approvals", detail: "Review and approve pending brand registrations." }] : [{ icon: Building2, title: "Brand onboarding", detail: "Configure your brand and select your plan." }]),
           ...(isTorchproxyAdmin ? [] : [{ icon: UserPlus, title: "Team management", detail: "Add team members to your brand workspace." }]),
         ].map((item) => (
           <Card key={item.title}>
-            <item.icon className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
-            <p className="mt-3 text-sm font-bold text-[var(--foreground)]">{item.title}</p>
-            <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{item.detail}</p>
+            <item.icon className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />
+            <p className="mt-2.5 text-sm font-semibold text-[var(--foreground)]">{item.title}</p>
+            <p className="mt-1 text-sm leading-5 text-[var(--foreground-muted)]">{item.detail}</p>
           </Card>
         ))}
       </div>
 
       {isTorchproxyAdmin && (
         <div className="mb-8">
-          <div className="flex items-start gap-4 mb-6">
+          <div className="flex items-start gap-4 mb-5">
             <div>
-              <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Pending Registrations</p>
-              <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Review brand applications.</h3>
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Pending Registrations</p>
+              <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-[var(--foreground)]">Review brand applications.</h3>
             </div>
           </div>
 
@@ -248,19 +249,19 @@ export default function AdminPage() {
                 <Card key={b.id} className="p-4 flex flex-col md:flex-row md:items-start justify-between gap-4">
                   <div className="min-w-0 space-y-2">
                     <div>
-                      <p className="font-bold text-[var(--foreground)]">{b.name}</p>
+                      <p className="font-semibold text-[var(--foreground)]">{b.name}</p>
                       <p className="text-sm text-[var(--foreground-muted)]">{b.company_name} &middot; {b.business_url}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[var(--foreground-muted)] sm:grid-cols-3">
-                      <p><span className="font-semibold text-[var(--foreground)]">Reg. #:</span> {b.registration_number || "—"}</p>
-                      <p><span className="font-semibold text-[var(--foreground)]">Industry:</span> {b.industry || "—"}</p>
-                      <p><span className="font-semibold text-[var(--foreground)]">Est. SKUs:</span> {b.estimated_sku_range || "—"}</p>
-                      <p><span className="font-semibold text-[var(--foreground)]">Contact:</span> {b.contact_title || "—"}</p>
-                      <p><span className="font-semibold text-[var(--foreground)]">Phone:</span> {b.contact_phone || "—"}</p>
-                      <p><span className="font-semibold text-[var(--foreground)]">Sells on:</span> {b.current_marketplaces || "—"}</p>
-                      <p className="col-span-2 sm:col-span-3"><span className="font-semibold text-[var(--foreground)]">Address:</span> {b.business_address || "—"}</p>
+                      <p><span className="font-medium text-[var(--foreground)]">Reg. #:</span> {b.registration_number || "—"}</p>
+                      <p><span className="font-medium text-[var(--foreground)]">Industry:</span> {b.industry || "—"}</p>
+                      <p><span className="font-medium text-[var(--foreground)]">Est. SKUs:</span> {b.estimated_sku_range || "—"}</p>
+                      <p><span className="font-medium text-[var(--foreground)]">Contact:</span> {b.contact_title || "—"}</p>
+                      <p><span className="font-medium text-[var(--foreground)]">Phone:</span> {b.contact_phone || "—"}</p>
+                      <p><span className="font-medium text-[var(--foreground)]">Sells on:</span> {b.current_marketplaces || "—"}</p>
+                      <p className="col-span-2 sm:col-span-3"><span className="font-medium text-[var(--foreground)]">Address:</span> {b.business_address || "—"}</p>
                       <p className="col-span-2 sm:col-span-3">
-                        <span className="font-semibold text-[var(--foreground)]">Authorization attested:</span>{" "}
+                        <span className="font-medium text-[var(--foreground)]">Authorization attested:</span>{" "}
                         {b.authorized_attestation ? "Yes" : "No"}
                       </p>
                     </div>
@@ -272,7 +273,7 @@ export default function AdminPage() {
                     <TactileButton variant="primary" onClick={() => handleBrandAction(b.id, 'approve')} className="flex items-center gap-2">
                       <Check className="h-4 w-4" /> Approve
                     </TactileButton>
-                    <TactileButton variant="secondary" onClick={() => handleBrandAction(b.id, 'reject')} className="flex items-center gap-2 text-[var(--status-error-text)] hover:text-[var(--status-error-text)] border border-[rgba(239,68,68,0.2)]">
+                    <TactileButton variant="secondary" onClick={() => handleBrandAction(b.id, 'reject')} className="flex items-center gap-2 text-[var(--status-error-text)]">
                       <X className="h-4 w-4" /> Reject
                     </TactileButton>
                   </div>
@@ -285,52 +286,48 @@ export default function AdminPage() {
 
       <div className={`grid gap-6 ${isTorchproxyAdmin ? 'hidden' : 'max-w-2xl'}`}>
         <Card>
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
-              <PlusCircle className="h-7 w-7 text-[var(--accent)]" strokeWidth={1.8} />
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--accent-soft)]">
+              <PlusCircle className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
             </div>
             <div>
-              <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Brand onboarding</p>
-              <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Complete your brand setup.</h3>
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Brand onboarding</p>
+              <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-[var(--foreground)]">Complete your brand setup.</h3>
             </div>
           </div>
 
-          <form className="mt-6 space-y-3" onSubmit={onboardBrand}>
+          <form className="mt-5 space-y-3" onSubmit={onboardBrand}>
             <div className="space-y-1.5 text-left">
-              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Brand name</label>
-              <DataInput 
-                value={brandName} 
-                onChange={(event) => setBrandName(event.target.value)} 
-                placeholder="Your brand name" 
-                aria-label="Brand name" 
+              <label className="text-xs font-medium text-[var(--foreground-muted)]">Brand name</label>
+              <DataInput
+                value={brandName}
+                onChange={(event) => setBrandName(event.target.value)}
+                placeholder="Your brand name"
+                aria-label="Brand name"
                 readOnly={true}
-                required 
+                required
               />
             </div>
             <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[var(--foreground-muted)]">Plan tier</span>
-              <select
-                value={plan}
-                onChange={(event) => setPlan(event.target.value as (typeof planOptions)[number]["value"])}
-                className="machine-recessed h-14 w-full rounded-[var(--radius-md)] border-0 px-4 font-mono text-sm text-[var(--foreground)] focus:outline-none focus:shadow-[var(--shadow-recessed),0_0_0_2px_var(--accent)]"
-              >
+              <span className="mb-1.5 block text-xs font-medium text-[var(--foreground-muted)]">Plan tier</span>
+              <Select value={plan} onChange={(event) => setPlan(event.target.value as (typeof planOptions)[number]["value"])}>
                 {planOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <TactileButton type="submit" variant="primary" className="w-full justify-center" disabled={brandSubmitting}>
               {brandSubmitting ? "Onboarding brand..." : "Complete onboarding"}
             </TactileButton>
           </form>
 
-          {brandMessage ? <div className="mt-4 rounded-[var(--radius-inner)] bg-[var(--bg-inner)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] p-4 text-sm leading-6 text-[var(--foreground-muted)]">{brandMessage}</div> : null}
+          {brandMessage ? <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-4 text-sm leading-6 text-[var(--foreground-muted)]">{brandMessage}</div> : null}
 
           {brandResult ? (
-            <div className="mt-4 rounded-[var(--radius-inner)] border border-[rgba(34,197,94,0.2)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--status-success-text)]">
-              <p className="font-bold">Brand onboarding complete!</p>
+            <div className="mt-4 rounded-[var(--radius-md)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--status-success-text)]">
+              <p className="font-semibold">Brand onboarding complete!</p>
               <p className="mt-2">Brand: {brandResult.name}</p>
               <p>Plan: {brandResult.plan}</p>
               <p>Torch sub-account: {brandResult.torch_sub_id}</p>
@@ -341,49 +338,45 @@ export default function AdminPage() {
 
       <div className={`grid gap-6 ${isTorchproxyAdmin ? 'hidden' : 'max-w-2xl'}`}>
         <Card>
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
-              <KeyRound className="h-7 w-7 text-[var(--accent)]" strokeWidth={1.8} />
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--accent-soft)]">
+              <KeyRound className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
             </div>
             <div>
-              <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Team management</p>
-              <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Add team members to your brand.</h3>
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Team management</p>
+              <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-[var(--foreground)]">Add team members to your brand.</h3>
             </div>
           </div>
 
-          <form className="mt-6 space-y-3" onSubmit={createUser}>
-            <DataInput 
-              value={brandId} 
-              onChange={(event) => setBrandId(event.target.value)} 
-              placeholder={`Brand ID (${currentSession.brand_id})`} 
-              aria-label="Brand ID" 
+          <form className="mt-5 space-y-3" onSubmit={createUser}>
+            <DataInput
+              value={brandId}
+              onChange={(event) => setBrandId(event.target.value)}
+              placeholder={`Brand ID (${currentSession.brand_id})`}
+              aria-label="Brand ID"
               readOnly={true}
-              required 
+              required
             />
             <DataInput value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Full name" aria-label="Full name" required />
             <DataInput value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" aria-label="Email" required />
             <DataInput value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="Password" aria-label="Password" required />
             <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[var(--foreground-muted)]">Role</span>
-              <select
-                value={role}
-                onChange={(event) => setRole(event.target.value)}
-                className="machine-recessed h-14 w-full rounded-[var(--radius-md)] border-0 px-4 font-mono text-sm text-[var(--foreground)] focus:outline-none focus:shadow-[var(--shadow-recessed),0_0_0_2px_var(--accent)]"
-              >
+              <span className="mb-1.5 block text-xs font-medium text-[var(--foreground-muted)]">Role</span>
+              <Select value={role} onChange={(event) => setRole(event.target.value)}>
                 <option value="analyst">Analyst</option>
                 <option value="admin">Admin</option>
-              </select>
+              </Select>
             </label>
             <TactileButton type="submit" variant="primary" className="w-full justify-center" disabled={userSubmitting}>
               {userSubmitting ? "Creating user..." : "Add team member"}
             </TactileButton>
           </form>
 
-          {userMessage ? <div className="mt-4 rounded-[var(--radius-inner)] bg-[var(--bg-inner)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] p-4 text-sm leading-6 text-[var(--foreground-muted)]">{userMessage}</div> : null}
+          {userMessage ? <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-4 text-sm leading-6 text-[var(--foreground-muted)]">{userMessage}</div> : null}
 
           {userResult ? (
-            <div className="mt-4 rounded-[var(--radius-inner)] border border-[rgba(34,197,94,0.2)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--status-success-text)]">
-              <p className="font-bold">Team member added!</p>
+            <div className="mt-4 rounded-[var(--radius-md)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--status-success-text)]">
+              <p className="font-semibold">Team member added!</p>
               <p className="mt-2">Name: {userResult.full_name}</p>
               <p>Email: {userResult.email}</p>
               <p>Role: {userResult.role}</p>

@@ -51,7 +51,7 @@ Covers the platform and infrastructure layer: FastAPI API, MySQL schema, auth, b
 
 **Scalable marketplace design:** `marketplaces` is the canonical catalog for all supported marketplaces, and `brand_marketplaces` maps each brand to the marketplaces it actively tracks with its own crawl cadence.
 
-**MVP marketplace:** Daraz LK only is still the default demo path, but the schema now supports 5 marketplaces without changing the job model.
+**MVP marketplace:** Daraz LK only is still the default demo path, but the schema now supports 6 marketplaces without changing the job model.
 
 ---
 
@@ -249,6 +249,8 @@ Promo creation is admin-only deliberately: a promo window suppresses violation d
 | `GET` | `/reports/weekly/{report_id}` | Get a specific report |
 | `GET` | `/reports/weekly/{report_id}/pdf` | Download the report as a PDF (rendered with ReportLab) |
 
+On-demand generation isn't the only way a report gets created: Celery Beat's `generate-weekly-reports` entry (`app/tasks/report_tasks.py`) runs every Monday at 06:00 Asia/Colombo and auto-generates one for every `status = 'approved'` brand, skipping (and logging) any single brand's failure rather than aborting the whole batch. Each report's `summary` also includes `repeat_offenders`, and each `products[]` entry includes `price_90d_start`/`price_90d_end`/`price_drift_pct` (trailing 90 days, independent of the report's own date range) alongside a `top_offending_sellers[]` list (seller name, violation count, a representative listing URL).
+
 **Generate report** (empty body = last 7 days):
 ```json
 {
@@ -312,10 +314,11 @@ Promo creation is admin-only deliberately: a promo window suppresses violation d
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `POST` | `/enforcement/violations/{id}` | **admin only** | Generate an enforcement letter (Claude → Groq → template fallback) from violation context |
+| `POST` | `/enforcement/violations/{id}` | **admin only** | Generate an enforcement letter (Claude → Groq → template fallback) from violation context, plus a best-effort real headless-browser (Playwright) screenshot of the listing |
 | `GET` | `/enforcement/violations/{id}` | any brand user | Fetch the latest enforcement letter for a violation |
+| `POST` | `/enforcement/violations/{id}/send` | **admin only** | Mark the latest letter `sent` (records `sent_at`) — there's no real seller contact address to email automatically, so this is the brand admin's own record of having actioned it elsewhere |
 
-Letter generation is admin-only: it's an external-facing action taken in the brand's name against a third party, not something an analyst should be able to initiate unilaterally. The response's `generated_by` field is always the real provider that produced the text (`"claude"` / `"groq"` / `"template"`).
+Letter generation is admin-only: it's an external-facing action taken in the brand's name against a third party, not something an analyst should be able to initiate unilaterally. The response's `generated_by` field is always the real provider that produced the text (`"claude"` / `"groq"` / `"template"`); `screenshot_base64` is `null` if capture failed or the target's proxy/country wasn't configured; `status` is `"draft"` until explicitly marked sent.
 
 ---
 
@@ -432,6 +435,8 @@ Seed data: `backend/database/seed_daraz_mvp.sql`
 | `GROQ_API_KEY` | — | Optional free-tier fallback for the above (console.groq.com) |
 | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model override |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5` | Claude model override |
+| `SLACK_WEBHOOK_URL` | — | Optional. If unset, the Slack alert channel is skipped |
+| `SENDGRID_API_KEY` / `SENDGRID_FROM_EMAIL` / `ALERT_EMAIL_TO` | — | Optional email alert channel via the SendGrid API. All three required together or the channel is skipped; `SENDGRID_FROM_EMAIL` must be a verified sender/domain in the SendGrid account or sends 403 |
 | `CRAWL_COUNTRY_CODE` | LK | Daraz country |
 | `CRAWL_DEMO_MODE` | true | Use shorter crawl intervals |
 | `CRAWL_SCHEDULER_TICK_SECONDS` | 30 | Beat dispatch frequency |
@@ -515,7 +520,8 @@ backend/
 │   ├── adapters/
 │   │   └── listing_adapter.py     # Daraz adapter (real ajax search API, not JSON-LD)
 │   ├── tasks/
-│   │   └── crawl_tasks.py         # Celery task definitions
+│   │   ├── crawl_tasks.py         # Celery task definitions
+│   │   └── report_tasks.py        # Weekly report auto-generation (every Monday, Celery Beat)
 │   └── core/
 │       ├── auth.py                # bcrypt + token helpers, require_auth/require_brand_admin/require_superadmin
 │       ├── db.py                  # MySQL + Redis connections

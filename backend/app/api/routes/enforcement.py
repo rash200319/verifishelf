@@ -13,6 +13,9 @@ def _format_letter(letter: dict) -> EnforcementLetterResponse:
         violation_id=letter["violation_id"],
         letter_content=letter["letter_content"],
         generated_by=letter["generated_by"],
+        screenshot_base64=letter.get("screenshot_base64"),
+        status=letter.get("status", "draft"),
+        sent_at=letter.get("sent_at"),
         generated_at=letter["generated_at"],
     )
 
@@ -52,5 +55,19 @@ async def get_enforcement_letter(violation_id: int, current_user: dict = Depends
 
     if letter is None:
         raise HTTPException(status_code=404, detail="Enforcement letter not found")
+
+    return _format_letter(letter)
+
+
+@router.post("/violations/{violation_id}/send", response_model=EnforcementLetterResponse)
+async def mark_enforcement_letter_sent(violation_id: int, current_user: dict = Depends(require_brand_admin)):
+    # Admin-only, same reasoning as generation: marking a letter "sent" is
+    # part of the same external-facing enforcement action.
+    try:
+        letter = await EnforcementService.mark_sent(violation_id, current_user["brand_id"])
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return _format_letter(letter)

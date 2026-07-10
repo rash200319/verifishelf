@@ -48,6 +48,7 @@ def render_weekly_report_pdf(brand_name: str, report: dict) -> bytes:
         ["Violations detected", str(summary.get("violations_detected", 0))],
         ["Violations still open", str(summary.get("violations_open", 0))],
         ["Active promo windows", str(summary.get("active_promo_windows", 0))],
+        ["Repeat offenders", str(summary.get("repeat_offenders", 0))],
     ]
     summary_table = Table(summary_rows, colWidths=[3 * inch, 2 * inch])
     summary_table.setStyle(
@@ -66,8 +67,9 @@ def render_weekly_report_pdf(brand_name: str, report: dict) -> bytes:
 
     products = report.get("products") or []
     if products:
-        product_rows = [["Product", "MAP Price", "Avg Observed", "Latest", "Snapshots"]]
+        product_rows = [["Product", "MAP Price", "Avg Observed", "Latest", "Snapshots", "90d Drift"]]
         for product in products:
+            drift_pct = product.get("price_drift_pct")
             product_rows.append(
                 [
                     product.get("product_name", ""),
@@ -75,9 +77,10 @@ def render_weekly_report_pdf(brand_name: str, report: dict) -> bytes:
                     f"{product['avg_observed_price']:.2f}" if product.get("avg_observed_price") is not None else "n/a",
                     f"{product['latest_price']:.2f}" if product.get("latest_price") is not None else "n/a",
                     str(product.get("snapshot_count", 0)),
+                    f"{drift_pct:+.1f}%" if drift_pct is not None else "n/a",
                 ]
             )
-        product_table = Table(product_rows, colWidths=[2.2 * inch, 1 * inch, 1.1 * inch, 1 * inch, 0.9 * inch])
+        product_table = Table(product_rows, colWidths=[1.9 * inch, 0.9 * inch, 1 * inch, 0.9 * inch, 0.8 * inch, 0.8 * inch])
         product_table.setStyle(
             TableStyle(
                 [
@@ -93,6 +96,34 @@ def render_weekly_report_pdf(brand_name: str, report: dict) -> bytes:
         )
         story.append(Paragraph("Product Highlights", section_style))
         story.append(product_table)
+
+    top_offending_sellers = report.get("top_offending_sellers") or []
+    if top_offending_sellers:
+        seller_rows = [["Seller", "Violations", "Listing"]]
+        for seller in top_offending_sellers:
+            seller_rows.append(
+                [
+                    seller.get("seller_name", ""),
+                    str(seller.get("violation_count", 0)),
+                    seller.get("listing_url") or "n/a",
+                ]
+            )
+        seller_table = Table(seller_rows, colWidths=[1.8 * inch, 1 * inch, 3.2 * inch])
+        seller_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+        story.append(Paragraph("Top Offending Sellers", section_style))
+        story.append(seller_table)
 
     narrative = (report.get("narrative") or "").strip()
     if narrative:

@@ -65,7 +65,7 @@ Yes, and be specific rather than vague:
 
 ## What to say honestly if asked about gaps
 
-- Only Daraz is live; the other 4 marketplaces are registered but not scraping yet (by design — see roadmap slide)
+- Only Daraz is live; the other 5 marketplaces are registered but not scraping yet (by design — see roadmap slide)
 - MySQL today, not Postgres/pgvector/TimescaleDB — same reasoning
 - The classifier's calibration on ambiguous cases is a work in progress, not perfectly tuned — this is a strength to admit, not hide
 

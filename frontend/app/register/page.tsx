@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Building2, FileText, Globe, User } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DataInput } from "@/components/ui/data-input";
+import { Select } from "@/components/ui/select";
 import { TactileButton } from "@/components/ui/tactile-button";
 import { apiRequest } from "@/lib/api";
 
@@ -103,23 +104,20 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden px-6 py-10 sm:px-8 lg:px-12">
-      <div className="noise-layer" />
-      <div className="grid-overlay" />
-
-      <div className="relative mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+    <div className="min-h-screen px-6 py-10 sm:px-8 lg:px-12">
+      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
         <div className="space-y-8">
-          <div className="inline-flex items-center gap-3 rounded-full bg-[rgba(255,255,255,0.74)] px-4 py-2 text-[0.7rem] font-bold uppercase tracking-[0.24em] text-[var(--foreground-muted)] shadow-[var(--shadow-card)]">
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_10px_rgba(255,71,87,0.55)]" />
-            VerifyShelf Brand Onboarding
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 py-1.5 text-xs font-medium text-[var(--foreground-muted)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+            VerifyShelf brand onboarding
           </div>
 
-          <div className="space-y-5">
-            <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-700 to-indigo-600 bg-clip-text text-transparent dark:from-white dark:to-indigo-400 leading-tight drop-shadow-[0_1px_0_#ffffff] sm:text-5xl">
+          <div className="space-y-4">
+            <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-[var(--foreground)] sm:text-5xl">
               Register your brand to start enforcing MAP policies.
             </h1>
-            <p className="max-w-2xl text-lg leading-8 text-[var(--foreground-muted)] sm:text-xl">
-              Join TorchProxy to protect your margins, monitor unauthorized sellers, and enforce MAP guidelines automatically.
+            <p className="max-w-lg text-lg leading-7 text-[var(--foreground-muted)]">
+              Join VerifyShelf to protect your margins, monitor unauthorized sellers, and enforce MAP guidelines automatically.
             </p>
           </div>
 
@@ -131,111 +129,103 @@ export default function RegisterPage() {
               { icon: FileText, title: "Quick access", detail: "Once approved, you get full dashboard access." },
             ].map((item) => (
               <Card key={item.title} className="p-4">
-                <item.icon className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
-                <p className="mt-3 text-sm font-bold text-[var(--foreground)]">{item.title}</p>
-                <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{item.detail}</p>
+                <item.icon className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
+                <p className="mt-3 text-sm font-semibold text-[var(--foreground)]">{item.title}</p>
+                <p className="mt-1.5 text-sm leading-5 text-[var(--foreground-muted)]">{item.detail}</p>
               </Card>
             ))}
           </div>
         </div>
 
-        <Card className="mx-auto w-full max-w-xl">
-          <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Sign up</p>
-          <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Create your workspace.</h2>
+        <Card className="mx-auto w-full max-w-md">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Sign up</p>
+          <h2 className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--foreground)]">Create your workspace.</h2>
 
           <form className="mt-6 space-y-4" onSubmit={submitRegister}>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Full Name</label>
+                <label className="text-xs font-medium text-[var(--foreground-muted)]">Full Name</label>
                 <DataInput value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" required />
               </div>
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Email Address</label>
+                <label className="text-xs font-medium text-[var(--foreground-muted)]">Email Address</label>
                 <DataInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email address" required />
               </div>
             </div>
 
             <div className="space-y-1.5 text-left">
-              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Password</label>
+              <label className="text-xs font-medium text-[var(--foreground-muted)]">Password</label>
               <DataInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Brand Name</label>
+                <label className="text-xs font-medium text-[var(--foreground-muted)]">Brand Name</label>
                 <DataInput value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Main brand name" required />
               </div>
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Company Name</label>
+                <label className="text-xs font-medium text-[var(--foreground-muted)]">Company Name</label>
                 <DataInput value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Legal entity" required />
               </div>
             </div>
 
             <div className="space-y-1.5 text-left">
-              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Business URL</label>
+              <label className="text-xs font-medium text-[var(--foreground-muted)]">Business URL</label>
               <DataInput value={businessUrl} onChange={(e) => setBusinessUrl(e.target.value)} placeholder="https://..." required />
             </div>
 
-            <p className="pt-2 text-xs font-bold uppercase tracking-[0.2em] text-[var(--foreground-muted)]">Business verification</p>
+            <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">Business verification</p>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Business Registration Number</label>
+                <label className="text-xs font-medium text-[var(--foreground-muted)]">Business Registration Number</label>
                 <DataInput value={registrationNumber} onChange={(e) => setRegistrationNumber(e.target.value)} placeholder="Company reg. / incorporation no." required />
               </div>
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Industry</label>
-                <select
-                  value={industry}
-                  onChange={(e) => setIndustry(e.target.value)}
-                  className="machine-recessed h-14 w-full rounded-[var(--radius-md)] border-0 px-4 font-mono text-sm text-[var(--foreground)] focus:outline-none focus:shadow-[var(--shadow-recessed),0_0_0_2px_var(--accent)]"
-                >
+                <label className="text-xs font-medium text-[var(--foreground-muted)]">Industry</label>
+                <Select value={industry} onChange={(e) => setIndustry(e.target.value)}>
                   {industryOptions.map((option) => (
                     <option key={option} value={option}>{option}</option>
                   ))}
-                </select>
+                </Select>
               </div>
             </div>
 
             <div className="space-y-1.5 text-left">
-              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Registered Business Address</label>
+              <label className="text-xs font-medium text-[var(--foreground-muted)]">Registered Business Address</label>
               <DataInput value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="Street, city, country" required />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Your Title / Role</label>
+                <label className="text-xs font-medium text-[var(--foreground-muted)]">Your Title / Role</label>
                 <DataInput value={contactTitle} onChange={(e) => setContactTitle(e.target.value)} placeholder="e.g. Brand Manager" required />
               </div>
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Contact Phone</label>
+                <label className="text-xs font-medium text-[var(--foreground-muted)]">Contact Phone</label>
                 <DataInput value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+1 555 000 0000" required />
               </div>
             </div>
 
             <div className="space-y-1.5 text-left">
-              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Estimated SKU Count</label>
-              <select
-                value={estimatedSkuRange}
-                onChange={(e) => setEstimatedSkuRange(e.target.value)}
-                className="machine-recessed h-14 w-full rounded-[var(--radius-md)] border-0 px-4 font-mono text-sm text-[var(--foreground)] focus:outline-none focus:shadow-[var(--shadow-recessed),0_0_0_2px_var(--accent)]"
-              >
+              <label className="text-xs font-medium text-[var(--foreground-muted)]">Estimated SKU Count</label>
+              <Select value={estimatedSkuRange} onChange={(e) => setEstimatedSkuRange(e.target.value)}>
                 {skuRangeOptions.map((option) => (
                   <option key={option} value={option}>{option}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className="space-y-1.5 text-left">
-              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Marketplaces You Currently Sell On</label>
-              <div className="grid grid-cols-2 gap-2 rounded-[var(--radius-md)] bg-[var(--bg-inner)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] sm:grid-cols-3">
+              <label className="text-xs font-medium text-[var(--foreground-muted)]">Marketplaces You Currently Sell On</label>
+              <div className="grid grid-cols-2 gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-3 sm:grid-cols-3">
                 {marketplaceOptions.map((marketplace) => (
                   <label key={marketplace} className="flex items-center gap-2 text-sm text-[var(--foreground)]">
                     <input
                       type="checkbox"
                       checked={currentMarketplaces.includes(marketplace)}
                       onChange={() => toggleMarketplace(marketplace)}
-                      className="h-4 w-4 rounded border-0"
+                      className="h-4 w-4 rounded border-[var(--border-strong)] text-[var(--accent)]"
                     />
                     {marketplace}
                   </label>
@@ -244,16 +234,16 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1.5 text-left">
-              <label className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">Additional Notes</label>
+              <label className="text-xs font-medium text-[var(--foreground-muted)]">Additional Notes</label>
               <DataInput value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did you hear about us? Any specific needs?" />
             </div>
 
-            <label className="flex items-start gap-3 rounded-[var(--radius-md)] bg-[var(--bg-inner)] p-3 text-sm leading-6 text-[var(--foreground)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
+            <label className="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-3 text-sm leading-6 text-[var(--foreground)]">
               <input
                 type="checkbox"
                 checked={authorizedAttestation}
                 onChange={(e) => setAuthorizedAttestation(e.target.checked)}
-                className="mt-1 h-4 w-4 shrink-0 rounded border-0"
+                className="mt-1 h-4 w-4 shrink-0 rounded border-[var(--border-strong)] text-[var(--accent)]"
                 required
               />
               <span>
@@ -267,7 +257,7 @@ export default function RegisterPage() {
           </form>
 
           {error ? (
-            <div className="mt-4 rounded-[var(--radius-inner)] border border-[rgba(239,68,68,0.2)] bg-[var(--status-error-bg)] px-4 py-3 text-sm text-[var(--status-error-text)]">
+            <div className="mt-4 rounded-[var(--radius-md)] bg-[var(--status-error-bg)] px-4 py-3 text-sm text-[var(--status-error-text)]">
               {error}
             </div>
           ) : null}
@@ -275,7 +265,7 @@ export default function RegisterPage() {
           <div className="mt-6 text-center space-y-2">
             <p className="text-xs text-[var(--foreground-muted)]">
               Already have an account?{" "}
-              <a href="/" onClick={(e) => { e.preventDefault(); router.push("/"); }} className="underline hover:text-[var(--accent)] transition-colors duration-200">
+              <a href="/" onClick={(e) => { e.preventDefault(); router.push("/"); }} className="underline hover:text-[var(--accent)] transition-colors">
                 Sign in here
               </a>
             </p>

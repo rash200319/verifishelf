@@ -18,6 +18,7 @@ def _format_report(report: dict) -> WeeklyReportResponse:
         report_end_date=report["report_end_date"],
         summary=report["summary"],
         products=report["products"],
+        top_offending_sellers=report.get("top_offending_sellers", []),
         narrative=report["narrative"],
         narrative_source=report.get("narrative_source", "rule_based"),
         generated_at=str(report["generated_at"]),

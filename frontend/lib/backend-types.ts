@@ -75,6 +75,7 @@ export interface WeeklyReportSummary {
   violations_detected: number;
   violations_open: number;
   active_promo_windows: number;
+  repeat_offenders: number;
 }
 
 export interface WeeklyReportProductStat {
@@ -84,6 +85,16 @@ export interface WeeklyReportProductStat {
   avg_observed_price: number | null;
   snapshot_count: number;
   latest_price: number | null;
+  price_90d_start: number | null;
+  price_90d_end: number | null;
+  price_drift_pct: number | null;
+}
+
+export interface WeeklyReportOffendingSeller {
+  seller_id: number;
+  seller_name: string;
+  violation_count: number;
+  listing_url: string | null;
 }
 
 export interface WeeklyReportRecord {
@@ -93,6 +104,7 @@ export interface WeeklyReportRecord {
   report_end_date: string;
   summary: WeeklyReportSummary;
   products: WeeklyReportProductStat[];
+  top_offending_sellers: WeeklyReportOffendingSeller[];
   narrative: string;
   narrative_source?: string;
   generated_at: string;
@@ -130,6 +142,9 @@ export interface EnforcementLetterRecord {
   violation_id: number;
   letter_content: string;
   generated_by: string;
+  screenshot_base64: string | null;
+  status: string;
+  sent_at: string | null;
   generated_at: string;
 }
 

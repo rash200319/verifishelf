@@ -20,6 +20,7 @@ class WeeklyReportSummary(BaseModel):
     violations_detected: int
     violations_open: int
     active_promo_windows: int
+    repeat_offenders: int = 0
 
 
 class WeeklyReportProductStat(BaseModel):
@@ -29,6 +30,16 @@ class WeeklyReportProductStat(BaseModel):
     avg_observed_price: float | None
     snapshot_count: int
     latest_price: float | None
+    price_90d_start: float | None = None
+    price_90d_end: float | None = None
+    price_drift_pct: float | None = None
+
+
+class WeeklyReportOffendingSeller(BaseModel):
+    seller_id: int
+    seller_name: str
+    violation_count: int
+    listing_url: str | None = None
 
 
 class WeeklyReportResponse(BaseModel):
@@ -38,6 +49,7 @@ class WeeklyReportResponse(BaseModel):
     report_end_date: date
     summary: WeeklyReportSummary
     products: list[WeeklyReportProductStat]
+    top_offending_sellers: list[WeeklyReportOffendingSeller] = []
     narrative: str
     narrative_source: str = "rule_based"
     generated_at: str

@@ -85,28 +85,28 @@ export default function BrandDashboardPage() {
 
   return (
     <section className="space-y-8 pb-10">
-      <div className="max-w-4xl space-y-3">
-        <p className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--foreground-muted)]">Dashboard</p>
-        <h2 className="text-4xl font-extrabold tracking-[-0.04em] text-[var(--foreground)] sm:text-5xl">Welcome, {session.brand_name || "Workspace"}.</h2>
-        <p className="max-w-3xl text-lg leading-8 text-[var(--foreground-muted)]">
+      <div className="max-w-3xl space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Dashboard</p>
+        <h2 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">Welcome, {session.brand_name || "Workspace"}.</h2>
+        <p className="max-w-2xl text-base leading-6 text-[var(--foreground-muted)]">
           Here is your high-level overview of active promos, recent crawl jobs, and enforcement reports.
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
           { icon: ShieldCheck, title: "Role", value: session.role, detail: "Scoped from the login token" },
           { icon: CalendarRange, title: "Promos", value: String(overview.promos.length), detail: `${activePromos} active today` },
           { icon: Radar, title: "Crawl jobs", value: String(overview.jobs.length), detail: latestJob ? `Latest: ${latestJob.status}` : "No jobs yet" },
           { icon: FileText, title: "Reports", value: String(overview.reports.length), detail: latestReport ? `Latest: ${formatDateTime(latestReport.generated_at)}` : "No reports yet" },
         ].map((stat) => (
-          <Card key={stat.title} className="flex flex-col border-t-4 border-t-[var(--accent)]">
-            <div className="flex items-center gap-3">
-              <stat.icon className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
-              <p className="text-sm font-bold text-[var(--foreground)]">{stat.title}</p>
+          <Card key={stat.title}>
+            <div className="flex items-center gap-2.5">
+              <stat.icon className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />
+              <p className="text-sm font-medium text-[var(--foreground-muted)]">{stat.title}</p>
             </div>
-            <p className="mt-4 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">{loading ? "-" : stat.value}</p>
-            <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{loading ? "Loading..." : stat.detail}</p>
+            <p className="mt-3 text-2xl font-semibold text-[var(--foreground)]">{loading ? "-" : stat.value}</p>
+            <p className="mt-1 text-sm text-[var(--foreground-muted)]">{loading ? "Loading..." : stat.detail}</p>
           </Card>
         ))}
       </div>
@@ -123,17 +123,17 @@ export default function BrandDashboardPage() {
         <>
           <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
             <Card>
-              <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
-                  <Sparkles className="h-7 w-7 text-[var(--accent)]" strokeWidth={1.8} />
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--accent-soft)]">
+                  <Sparkles className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
                 </div>
                 <div>
-                  <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Quick actions</p>
-                  <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Jump straight into the API-backed flows.</h3>
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Quick actions</p>
+                  <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-[var(--foreground)]">Jump straight into the API-backed flows.</h3>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {[
                   { href: "/promos", title: "Manage promos", detail: "Add or review approved below-MAP windows." },
                   { href: "/crawl", title: "Inspect crawl ops", detail: "See scheduling intervals and recent jobs." },
@@ -143,64 +143,64 @@ export default function BrandDashboardPage() {
                   <Link
                     key={action.href}
                     href={action.href}
-                    className="rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] transition hover:-translate-y-0.5 hover:bg-[var(--bg-inner-hover)]"
+                    className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-4 transition-colors hover:border-[var(--accent)]/40"
                   >
-                    <p className="text-sm font-bold text-[var(--foreground)]">{action.title}</p>
-                    <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{action.detail}</p>
+                    <p className="text-sm font-semibold text-[var(--foreground)]">{action.title}</p>
+                    <p className="mt-1.5 text-sm leading-5 text-[var(--foreground-muted)]">{action.detail}</p>
                   </Link>
                 ))}
               </div>
             </Card>
 
             <Card>
-              <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Crawl schedule</p>
-              <h3 className="mt-2 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Crawl schedule</p>
+              <h3 className="mt-1 text-lg font-semibold tracking-tight text-[var(--foreground)]">
                 {overview.schedule ? `${overview.schedule.marketplace} ${overview.schedule.country_code}` : "Schedule not set"}
               </h3>
               {overview.schedule ? (
-                <div className="mt-5 space-y-3">
-                  <div className="rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
-                    <p className="text-sm font-bold text-[var(--foreground)]">Demo mode</p>
-                    <p className="mt-1 text-sm leading-6 text-[var(--foreground-muted)]">{overview.schedule.demo_mode ? "Yes" : "No"}</p>
+                <div className="mt-4 space-y-2">
+                  <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-3">
+                    <p className="text-sm font-medium text-[var(--foreground)]">Demo mode</p>
+                    <p className="mt-0.5 text-sm text-[var(--foreground-muted)]">{overview.schedule.demo_mode ? "Yes" : "No"}</p>
                   </div>
-                  <div className="rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
-                    <p className="text-sm font-bold text-[var(--foreground)]">Scheduler tick</p>
-                    <p className="mt-1 text-sm leading-6 text-[var(--foreground-muted)]">{overview.schedule.scheduler_tick_seconds} seconds</p>
+                  <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-3">
+                    <p className="text-sm font-medium text-[var(--foreground)]">Scheduler tick</p>
+                    <p className="mt-0.5 text-sm text-[var(--foreground-muted)]">{overview.schedule.scheduler_tick_seconds} seconds</p>
                   </div>
-                  <div className="rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
-                    <p className="text-sm font-bold text-[var(--foreground)]">Plan intervals</p>
+                  <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-3">
+                    <p className="text-sm font-medium text-[var(--foreground)]">Plan intervals</p>
                     <div className="mt-2 grid gap-2 sm:grid-cols-3">
                       {Object.entries(overview.schedule.intervals_seconds).map(([planName, seconds]) => (
-                        <div key={planName} className="rounded-[var(--radius-md)] bg-[rgba(255,255,255,0.05)] border border-[rgba(148,163,184,0.1)] p-3 text-center">
-                          <p className="monospace text-[0.62rem] font-bold uppercase tracking-[0.22em] text-[var(--foreground-muted)]">{planName}</p>
-                          <p className="mt-1 text-lg font-extrabold text-[var(--foreground)]">{seconds}s</p>
+                        <div key={planName} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--panel)] p-2.5 text-center">
+                          <p className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--foreground-muted)]">{planName}</p>
+                          <p className="mt-0.5 text-base font-semibold text-[var(--foreground)]">{seconds}s</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
               ) : (
-                <p className="mt-5 text-sm text-[var(--foreground-muted)]">No active schedule found for this workspace.</p>
+                <p className="mt-4 text-sm text-[var(--foreground-muted)]">No active schedule found for this workspace.</p>
               )}
             </Card>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
-              <div className="flex items-center gap-3">
-                <Clock3 className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
-                <p className="text-lg font-bold text-[var(--foreground)]">Recent crawl jobs</p>
+              <div className="flex items-center gap-2.5">
+                <Clock3 className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />
+                <p className="text-base font-semibold text-[var(--foreground)]">Recent crawl jobs</p>
               </div>
-              <div className="mt-5 space-y-3">
+              <div className="mt-4 space-y-2">
                 {overview.jobs.length ? (
                   overview.jobs.slice(0, 4).map((job) => (
-                    <div key={job.id} className="rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
+                    <div key={job.id} className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-3.5">
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-bold text-[var(--foreground)]">Job #{job.id}</p>
+                        <p className="text-sm font-medium text-[var(--foreground)]">Job #{job.id}</p>
                         <StatusBadge status={job.status} />
                       </div>
-                      <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">Created {formatDateTime(job.created_at)}</p>
-                      <p className="text-sm leading-6 text-[var(--foreground-muted)]">Started {formatDateTime(job.started_at)} · Finished {formatDateTime(job.finished_at)}</p>
+                      <p className="mt-1.5 text-sm leading-5 text-[var(--foreground-muted)]">Created {formatDateTime(job.created_at)}</p>
+                      <p className="text-sm leading-5 text-[var(--foreground-muted)]">Started {formatDateTime(job.started_at)} · Finished {formatDateTime(job.finished_at)}</p>
                     </div>
                   ))
                 ) : (
@@ -210,20 +210,20 @@ export default function BrandDashboardPage() {
             </Card>
 
             <Card>
-              <div className="flex items-center gap-3">
-                <BarChart3 className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
-                <p className="text-lg font-bold text-[var(--foreground)]">Latest report snapshot</p>
+              <div className="flex items-center gap-2.5">
+                <BarChart3 className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.8} />
+                <p className="text-base font-semibold text-[var(--foreground)]">Latest report snapshot</p>
               </div>
               {latestReport ? (
-                <div className="mt-5 space-y-4">
-                  <div className="rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
-                    <p className="text-sm font-bold text-[var(--foreground)]">
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-3.5">
+                    <p className="text-sm font-medium text-[var(--foreground)]">
                       {formatDateTime(latestReport.generated_at)} · {latestReport.report_start_date} to {latestReport.report_end_date}
                     </p>
-                    <p className="mt-2 text-sm leading-7 text-[var(--foreground-muted)]">{latestReport.narrative.slice(0, 260)}...</p>
+                    <p className="mt-1.5 text-sm leading-6 text-[var(--foreground-muted)]">{latestReport.narrative.slice(0, 260)}...</p>
                   </div>
-                  <Link href="/reports" className="inline-flex items-center gap-2 text-sm font-bold text-[var(--accent)]">
-                    Open reports <ArrowRight className="h-4 w-4" strokeWidth={2} />
+                  <Link href="/reports" className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent)]">
+                    Open reports <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
                   </Link>
                 </div>
               ) : (

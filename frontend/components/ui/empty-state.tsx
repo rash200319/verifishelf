@@ -10,11 +10,11 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon: Icon = FileWarning, title, description, className }: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-center justify-center rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-8 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]", className)}>
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-recessed)]">
-        <Icon className="h-6 w-6 text-[var(--foreground-muted)]" strokeWidth={1.5} />
+    <div className={cn("flex flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border)] p-8 text-center", className)}>
+      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--panel-muted)]">
+        <Icon className="h-5 w-5 text-[var(--foreground-muted)]" strokeWidth={1.5} />
       </div>
-      <p className="text-sm font-bold text-[var(--foreground)]">{title}</p>
+      <p className="text-sm font-medium text-[var(--foreground)]">{title}</p>
       <p className="mt-1 max-w-sm text-sm leading-6 text-[var(--foreground-muted)]">{description}</p>
     </div>
   );

@@ -1,5 +1,6 @@
 from app.repositories.enforcement_letter_repository import EnforcementLetterRepository
 from app.services import llm_client
+from app.services.screenshot_service import capture_listing_screenshot
 
 
 class EnforcementService:
@@ -91,10 +92,17 @@ class EnforcementService:
             letter_content = cls.build_template_letter(context)
             generated_by = cls.PROVIDER_TEMPLATE
 
+        screenshot_base64 = await capture_listing_screenshot(
+            listing_url=context.get("listing_url"),
+            country_code=context.get("country_code"),
+            brand_sub_id=context.get("torch_sub_id"),
+        )
+
         return await EnforcementLetterRepository.create_letter(
             violation_id=violation_id,
             letter_content=letter_content,
             generated_by=generated_by,
+            screenshot_base64=screenshot_base64,
         )
 
     @classmethod
@@ -103,3 +111,22 @@ class EnforcementService:
         if context is None:
             return None
         return await EnforcementLetterRepository.get_latest_for_violation(violation_id)
+
+    @classmethod
+    async def mark_sent(cls, violation_id: int, brand_id: int) -> dict:
+        """
+        Record that a brand admin has actually transmitted the drafted
+        letter (there's no real seller contact address to email
+        automatically, so this is the brand's own record of having actioned
+        it elsewhere). Raises ValueError if the violation doesn't belong to
+        this brand or no letter has been generated yet.
+        """
+        context = await EnforcementLetterRepository.get_violation_context(violation_id, brand_id)
+        if context is None:
+            raise ValueError(f"Violation {violation_id} not found for brand {brand_id}")
+
+        letter = await EnforcementLetterRepository.get_latest_for_violation(violation_id)
+        if letter is None:
+            raise ValueError(f"No enforcement letter has been generated yet for violation {violation_id}")
+
+        return await EnforcementLetterRepository.mark_sent(letter["id"])

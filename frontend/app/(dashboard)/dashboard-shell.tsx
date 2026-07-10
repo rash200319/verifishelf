@@ -73,25 +73,25 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const SidebarContent = () => (
     <>
-      <div className="flex items-center gap-3 px-2 py-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--foreground)] text-[var(--accent-foreground)] shadow-[var(--shadow-sharp)]">
-          <ShieldCheck className="h-5 w-5" strokeWidth={2} />
+      <div className="flex items-center gap-2.5 px-2 py-4">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent)] text-[var(--accent-foreground)]">
+          <ShieldCheck className="h-4 w-4" strokeWidth={2} />
         </div>
         <div className="flex-1 overflow-hidden">
-          <p className="monospace text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[var(--foreground-muted)]">
+          <p className="text-[0.65rem] font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
             VerifyShelf
           </p>
-          <p className="truncate text-sm font-bold text-[var(--foreground)]">
+          <p className="truncate text-sm font-semibold text-[var(--foreground)]">
             {session?.role === "superadmin" ? "TorchProxy Admin" : session?.brand_name ?? "Workspace"}
           </p>
         </div>
       </div>
 
-      <div className="mt-8 flex-1 space-y-2">
-        <p className="px-2 text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider mb-2">
+      <div className="mt-6 flex-1 space-y-1">
+        <p className="px-2 text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)] mb-2">
           Menu
         </p>
-        <nav className="space-y-1.5">
+        <nav className="space-y-0.5">
           {navigation.map((item) => {
             const active = pathname === item.href;
             const Icon = item.icon;
@@ -101,10 +101,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-[rgba(79,70,229,0.1)] text-[var(--accent)]"
-                    : "text-[var(--foreground-muted)] hover:bg-[rgba(0,0,0,0.05)] dark:hover:bg-[rgba(255,255,255,0.05)] hover:text-[var(--foreground)]"
+                    ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                    : "text-[var(--foreground-muted)] hover:bg-[var(--panel-muted)] hover:text-[var(--foreground)]"
                 )}
               >
                 <Icon className={cn("h-4 w-4", active ? "text-[var(--accent)]" : "text-[var(--foreground-muted)]")} />
@@ -115,14 +115,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </nav>
       </div>
 
-      <div className="mt-auto border-t border-[rgba(148,163,184,0.2)] pt-4 space-y-4">
+      <div className="mt-auto border-t border-[var(--border)] pt-4 space-y-3">
         <div className="flex items-center justify-between px-2">
           <span className="text-xs font-medium text-[var(--foreground-muted)]">Theme</span>
           <ThemeToggle />
         </div>
         <button
           onClick={handleSignOut}
-          className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-sm font-medium text-[var(--foreground-muted)] hover:bg-[rgba(239,68,68,0.1)] hover:text-red-500 transition-colors"
+          className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium text-[var(--foreground-muted)] hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error-text)] transition-colors"
         >
           <LogOut className="h-4 w-4" />
           Sign out
@@ -132,26 +132,23 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="relative min-h-screen bg-[var(--background)]">
-      <div className="noise-layer" />
-      <div className="grid-overlay" />
-
+    <div className="min-h-screen bg-[var(--background)]">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Mobile Header */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[rgba(148,163,184,0.2)] bg-[var(--background)]/80 p-4 backdrop-blur-md lg:hidden">
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[var(--border)] bg-[var(--panel)] p-4 lg:hidden">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-6 w-6 text-[var(--foreground)]" />
-          <span className="font-bold text-[var(--foreground)]">VerifyShelf</span>
+          <ShieldCheck className="h-5 w-5 text-[var(--accent)]" />
+          <span className="font-semibold text-[var(--foreground)]">VerifyShelf</span>
         </div>
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1 text-[var(--foreground)]">
-          {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
@@ -159,7 +156,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         {/* Sidebar */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[rgba(148,163,184,0.2)] bg-[var(--panel)] px-4 py-6 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shadow-[var(--shadow-sharp)] lg:shadow-none",
+            "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[var(--border)] bg-[var(--panel)] px-4 py-6 transition-transform duration-200 ease-out lg:static lg:translate-x-0",
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -167,10 +164,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 lg:pl-8 lg:pr-8 xl:pr-12 lg:pt-8 relative overflow-y-auto">
+        <main className="flex-1 lg:pl-8 lg:pr-8 xl:pr-12 lg:pt-8 overflow-y-auto">
           <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-0">
             {!session ? (
-              <div className="mb-8 rounded-[var(--radius-lg)] border border-[rgba(255,71,87,0.18)] bg-[rgba(255,255,255,0.56)] px-5 py-4 text-sm text-[var(--foreground-muted)] shadow-[var(--shadow-card)]">
+              <div className="mb-8 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--panel)] px-5 py-4 text-sm text-[var(--foreground-muted)]">
                 No saved session found. Sign in from the home page before using the protected screens.
               </div>
             ) : null}
@@ -179,8 +176,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               {children}
             </div>
 
-            <footer className="mt-12 flex items-center justify-between border-t border-[rgba(148,163,184,0.2)] py-6 text-xs text-[var(--foreground-muted)]">
-              <p className="monospace font-bold uppercase tracking-[0.15em]">VerifyShelf</p>
+            <footer className="mt-12 flex items-center justify-between border-t border-[var(--border)] py-6 text-xs text-[var(--foreground-muted)]">
+              <p className="font-semibold">VerifyShelf</p>
               <p>© {new Date().getFullYear()} VerifyShelf Inc.</p>
             </footer>
           </div>

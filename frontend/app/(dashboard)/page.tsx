@@ -56,22 +56,19 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden px-6 py-10 sm:px-8 lg:px-12">
-      <div className="noise-layer" />
-      <div className="grid-overlay" />
-
-      <div className="relative mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+    <div className="min-h-screen px-6 py-10 sm:px-8 lg:px-12">
+      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
         <div className="space-y-8">
-          <div className="inline-flex items-center gap-3 rounded-full bg-[rgba(255,255,255,0.74)] px-4 py-2 text-[0.7rem] font-bold uppercase tracking-[0.24em] text-[var(--foreground-muted)] shadow-[var(--shadow-card)]">
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_10px_rgba(255,71,87,0.55)]" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 py-1.5 text-xs font-medium text-[var(--foreground-muted)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
             VerifyShelf brand login
           </div>
 
-          <div className="space-y-5">
-            <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-700 to-indigo-600 bg-clip-text text-transparent dark:from-white dark:to-indigo-400 leading-tight drop-shadow-[0_1px_0_#ffffff] sm:text-5xl">
+          <div className="space-y-4">
+            <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-[var(--foreground)] sm:text-5xl">
               Access your MAP enforcement workspace.
             </h1>
-            <p className="max-w-2xl text-lg leading-8 text-[var(--foreground-muted)] sm:text-xl">
+            <p className="max-w-lg text-lg leading-7 text-[var(--foreground-muted)]">
               Monitor your product catalog, manage approved promos, and review weekly violation reports.
             </p>
           </div>
@@ -83,21 +80,21 @@ export default function LoginPage() {
               { icon: KeyRound, title: "Direct login", detail: "No extra onboarding flow on this public portal." },
             ].map((item) => (
               <Card key={item.title} className="p-4">
-                <item.icon className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
-                <p className="mt-3 text-sm font-bold text-[var(--foreground)]">{item.title}</p>
-                <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">{item.detail}</p>
+                <item.icon className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
+                <p className="mt-3 text-sm font-semibold text-[var(--foreground)]">{item.title}</p>
+                <p className="mt-1.5 text-sm leading-5 text-[var(--foreground-muted)]">{item.detail}</p>
               </Card>
             ))}
           </div>
         </div>
 
-        <Card className="mx-auto w-full max-w-xl">
-          <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Sign in</p>
-          <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Enter your workspace details.</h2>
+        <Card className="mx-auto w-full max-w-md">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Sign in</p>
+          <h2 className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--foreground)]">Enter your workspace details.</h2>
 
           <form className="mt-6 space-y-4" onSubmit={submitLogin}>
             <div className="space-y-1.5 text-left">
-              <label htmlFor="email-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
+              <label htmlFor="email-input" className="text-xs font-medium text-[var(--foreground-muted)]">
                 Email Address
               </label>
               <DataInput
@@ -112,7 +109,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5 text-left">
-              <label htmlFor="password-input" className="text-xs font-semibold text-[var(--foreground-muted)] ml-1">
+              <label htmlFor="password-input" className="text-xs font-medium text-[var(--foreground-muted)]">
                 Password
               </label>
               <DataInput
@@ -132,7 +129,7 @@ export default function LoginPage() {
           </form>
 
           {error ? (
-            <div className="mt-4 rounded-[var(--radius-inner)] border border-[rgba(239,68,68,0.2)] bg-[var(--status-error-bg)] px-4 py-3 text-sm text-[var(--status-error-text)]">
+            <div className="mt-4 rounded-[var(--radius-md)] bg-[var(--status-error-bg)] px-4 py-3 text-sm text-[var(--status-error-text)]">
               {error}
             </div>
           ) : null}
@@ -141,7 +138,7 @@ export default function LoginPage() {
             <a
               href="#"
               onClick={(e) => e.preventDefault()}
-              className="text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors duration-200"
+              className="text-xs font-medium text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors"
             >
               Forgot Password?
             </a>
@@ -150,7 +147,7 @@ export default function LoginPage() {
               <a
                 href="#"
                 onClick={(e) => e.preventDefault()}
-                className="underline hover:text-[var(--accent)] transition-colors duration-200"
+                className="underline hover:text-[var(--accent)] transition-colors"
               >
                 Contact support
               </a>

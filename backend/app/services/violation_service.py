@@ -2,8 +2,10 @@ from datetime import date, datetime
 
 from app.ml import inference
 from app.ml.features import build_feature_row
+from app.repositories.enforcement_letter_repository import EnforcementLetterRepository
 from app.repositories.seller_repository import SellerRepository
 from app.repositories.violation_repository import ViolationRepository
+from app.services.alert_service import send_violation_alert
 from app.services.promo_service import PromoService
 
 
@@ -118,6 +120,16 @@ class ViolationService:
             classifier_confidence=round(classifier_confidence, 2),
             classifier_type=classifier_type,
         )
+
+        if violation:
+            # Best-effort -- a notification failure must never fail the
+            # crawl or the violation record itself (see alert_service).
+            try:
+                context = await EnforcementLetterRepository.get_violation_context(violation["id"], brand_id)
+                if context:
+                    send_violation_alert(context)
+            except Exception:
+                pass
 
         return {
             "action": "created",
