@@ -48,12 +48,20 @@ ON DUPLICATE KEY UPDATE
     country_code         = VALUES(country_code),
     priority             = VALUES(priority);
 
--- ─── Product ──────────────────────────────────────────────────────────────────
--- "iPhone 13" is a real, high-volume Daraz search term (verified against
--- live daraz.lk/daraz.pk search results) so the live crawl returns actual
--- JSON-LD listings instead of falling back to the synthetic demo listing.
+-- ─── Products ─────────────────────────────────────────────────────────────────
+-- Both names are real, high-volume Daraz search terms (verified against live
+-- daraz.lk/daraz.pk ajax search results) so the live crawl returns actual
+-- listings instead of a "no_listings_found" failure for a fake product name.
 INSERT INTO products (id, brand_id, name, description, map_price)
 VALUES (1, 1, 'iPhone 13', 'MAP monitoring demo product for Daraz PK', 250000.00)
+ON DUPLICATE KEY UPDATE
+    brand_id    = VALUES(brand_id),
+    name        = VALUES(name),
+    description = VALUES(description),
+    map_price   = VALUES(map_price);
+
+INSERT INTO products (id, brand_id, name, description, map_price)
+VALUES (2, 1, 'Philips Air Fryer', 'MAP monitoring demo product for Daraz PK', 32000.00)
 ON DUPLICATE KEY UPDATE
     brand_id    = VALUES(brand_id),
     name        = VALUES(name),
