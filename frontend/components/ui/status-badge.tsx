@@ -20,16 +20,16 @@ export function StatusBadge({ status, type, className }: StatusBadgeProps) {
   const resolvedType = type || getStatusType(status);
 
   const typeStyles = {
-    success: "bg-[var(--status-success-bg)] text-[var(--status-success-text)] border-[rgba(34,197,94,0.2)]",
-    error: "bg-[var(--status-error-bg)] text-[var(--status-error-text)] border-[rgba(239,68,68,0.2)]",
-    warning: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] border-[rgba(245,158,11,0.2)]",
-    neutral: "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)] border-[rgba(148,163,184,0.2)]",
+    success: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]",
+    error: "bg-[var(--status-error-bg)] text-[var(--status-error-text)]",
+    warning: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
+    neutral: "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.22em]",
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
         typeStyles[resolvedType],
         className
       )}

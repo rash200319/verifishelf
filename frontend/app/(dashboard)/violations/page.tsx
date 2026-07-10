@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ExternalLink, FileText, RefreshCw, ShieldAlert, Sparkles, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -48,6 +48,9 @@ export default function ViolationsPage() {
   const [letter, setLetter] = useState<EnforcementLetterRecord | null>(null);
   const [letterLoading, setLetterLoading] = useState(false);
   const [letterError, setLetterError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   useEffect(() => {
     const syncSession = () => setSession(loadSession());
@@ -59,16 +62,21 @@ export default function ViolationsPage() {
     };
   }, []);
 
-  const loadViolations = async (activeSession: SessionData) => {
-    setLoading(true);
-    setError("");
+  const loadViolations = async (activeSession: SessionData, options: { silent?: boolean } = {}) => {
+    if (!options.silent) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const data = await apiRequest<ViolationRecord[]>("/violations/", { session: activeSession });
       setViolations(data);
+      setLastUpdated(new Date());
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load violations");
+      if (!options.silent) {
+        setError(requestError instanceof Error ? requestError.message : "Unable to load violations");
+      }
     } finally {
-      setLoading(false);
+      if (!options.silent) setLoading(false);
     }
   };
 
@@ -78,6 +86,15 @@ export default function ViolationsPage() {
       return;
     }
     void loadViolations(session);
+
+    // Passive live refresh -- new violations from an in-progress or
+    // just-triggered crawl show up here without a manual refresh click.
+    const interval = setInterval(() => {
+      if (sessionRef.current) {
+        void loadViolations(sessionRef.current, { silent: true });
+      }
+    }, 5000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, session]);
 
@@ -128,40 +145,40 @@ export default function ViolationsPage() {
 
   return (
     <section className="space-y-8 pb-10">
-      <div className="max-w-4xl space-y-3">
-        <p className="monospace text-[0.7rem] font-bold uppercase tracking-[0.28em] text-[var(--foreground-muted)]">Violation feed</p>
-        <h2 className="text-4xl font-extrabold tracking-[-0.04em] text-[var(--foreground)] sm:text-5xl">MAP violations detected across your listings.</h2>
-        <p className="max-w-3xl text-lg leading-8 text-[var(--foreground-muted)]">
+      <div className="max-w-3xl space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Violation feed</p>
+        <h2 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">MAP violations detected across your listings.</h2>
+        <p className="max-w-2xl text-base leading-6 text-[var(--foreground-muted)]">
           Every row here is a real crawled listing scored by the trained violation classifier, not a static rule. Generate an enforcement letter directly from a violation.
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
-            <ShieldAlert className="h-6 w-6 text-[var(--accent)]" strokeWidth={1.8} />
+        <Card className="flex items-center gap-3.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--accent-soft)]">
+            <ShieldAlert className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
           </div>
           <div>
-            <p className="text-2xl font-extrabold text-[var(--foreground)]">{violations.length}</p>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-muted)]">Total violations</p>
+            <p className="text-xl font-semibold text-[var(--foreground)]">{violations.length}</p>
+            <p className="text-xs font-medium text-[var(--foreground-muted)]">Total violations</p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
-            <AlertTriangle className="h-6 w-6 text-[var(--status-warning-text)]" strokeWidth={1.8} />
+        <Card className="flex items-center gap-3.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--status-warning-bg)]">
+            <AlertTriangle className="h-5 w-5 text-[var(--status-warning-text)]" strokeWidth={1.8} />
           </div>
           <div>
-            <p className="text-2xl font-extrabold text-[var(--foreground)]">{openCount}</p>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-muted)]">Still open</p>
+            <p className="text-xl font-semibold text-[var(--foreground)]">{openCount}</p>
+            <p className="text-xs font-medium text-[var(--foreground-muted)]">Still open</p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--background)] shadow-[var(--shadow-floating)]">
-            <AlertTriangle className="h-6 w-6 text-[var(--status-error-text)]" strokeWidth={1.8} />
+        <Card className="flex items-center gap-3.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--status-error-bg)]">
+            <AlertTriangle className="h-5 w-5 text-[var(--status-error-text)]" strokeWidth={1.8} />
           </div>
           <div>
-            <p className="text-2xl font-extrabold text-[var(--foreground)]">{highSeverityCount}</p>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-muted)]">High severity</p>
+            <p className="text-xl font-semibold text-[var(--foreground)]">{highSeverityCount}</p>
+            <p className="text-xs font-medium text-[var(--foreground-muted)]">High severity</p>
           </div>
         </Card>
       </div>
@@ -169,31 +186,34 @@ export default function ViolationsPage() {
       <Card>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Live feed</p>
-            <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Recent violations</h3>
+            <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Live feed</p>
+            <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-[var(--foreground)]">Recent violations</h3>
+            <p className="mt-0.5 text-xs text-[var(--foreground-muted)]">
+              Auto-refreshes every 5s{lastUpdated ? ` · updated ${lastUpdated.toLocaleTimeString()}` : ""}
+            </p>
           </div>
           <TactileButton variant="secondary" onClick={() => void loadViolations(session)}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </TactileButton>
         </div>
 
-        <div className="mt-6 space-y-3">
+        <div className="mt-5 space-y-2.5">
           {loading ? (
             <LoadingState text="Loading violations..." />
           ) : error ? (
-            <p className="text-sm font-semibold text-[var(--status-error-text)]">{error}</p>
+            <p className="text-sm font-medium text-[var(--status-error-text)]">{error}</p>
           ) : violations.length ? (
             violations.map((violation) => (
               <div
                 key={violation.id}
-                className="rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] transition hover:-translate-y-0.5 hover:bg-[var(--bg-inner-hover)]"
+                className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-4 transition-colors hover:border-[var(--accent)]/40"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <StatusBadge status={violation.severity ?? "n/a"} type={severityBadgeType(violation.severity)} />
                     <StatusBadge status={violation.status} />
                   </div>
-                  <span className="text-xs font-semibold text-[var(--foreground-muted)]">{formatDateTime(violation.detected_at)}</span>
+                  <span className="text-xs font-medium text-[var(--foreground-muted)]">{formatDateTime(violation.detected_at)}</span>
                 </div>
 
                 <div className="mt-3 flex items-start justify-between gap-4">
@@ -202,26 +222,26 @@ export default function ViolationsPage() {
                       href={violation.listing?.listing_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--foreground)] hover:text-[var(--accent)]"
+                      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--foreground)] hover:text-[var(--accent)]"
                     >
                       <span className="truncate">{violation.listing?.listing_title ?? `Listing #${violation.listing_id}`}</span>
                       <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                     </a>
                     <p className="mt-1 text-sm text-[var(--foreground-muted)]">
-                      <span className="font-semibold text-[var(--foreground)]">{violation.listing?.product_name ?? "Product"}</span>
-                      {" · "}Sold by <span className="font-semibold text-[var(--foreground)]">{violation.listing?.seller_name ?? `Seller #${violation.listing?.seller_id ?? "?"}`}</span>
+                      <span className="font-medium text-[var(--foreground)]">{violation.listing?.product_name ?? "Product"}</span>
+                      {" · "}Sold by <span className="font-medium text-[var(--foreground)]">{violation.listing?.seller_name ?? `Seller #${violation.listing?.seller_id ?? "?"}`}</span>
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-bold text-[var(--foreground)]">
+                    <p className="text-sm font-semibold text-[var(--foreground)]">
                       {violation.advertised_price.toFixed(2)} {violation.listing?.currency_code ?? ""}
                     </p>
                     <p className="text-xs text-[var(--foreground-muted)]">MAP {violation.map_price.toFixed(2)}</p>
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(148,163,184,0.15)] pt-3">
-                  <p className="text-xs font-semibold text-[var(--foreground-muted)]">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
+                  <p className="text-xs font-medium text-[var(--foreground-muted)]">
                     {violation.price_delta_pct !== null ? `${violation.price_delta_pct.toFixed(1)}% below MAP` : "—"}
                     {" · "}
                     Confidence {formatConfidence(violation.classifier_confidence)} ({classifierLabel(violation.classifier_type)})
@@ -241,16 +261,16 @@ export default function ViolationsPage() {
       {activeViolationId !== null ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeLetter}>
           <div
-            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[var(--radius-xl)] bg-[var(--card)] p-6 shadow-2xl"
+            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--panel)] p-6 shadow-[var(--shadow-md)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="monospace text-[0.65rem] font-bold uppercase tracking-[0.26em] text-[var(--foreground-muted)]">Violation #{activeViolationId}</p>
-                <h3 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-[var(--foreground)]">Enforcement letter</h3>
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Violation #{activeViolationId}</p>
+                <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-[var(--foreground)]">Enforcement letter</h3>
               </div>
-              <button onClick={closeLetter} className="rounded-full p-2 hover:bg-[var(--bg-inner)]" aria-label="Close">
-                <X className="h-5 w-5 text-[var(--foreground-muted)]" />
+              <button onClick={closeLetter} className="rounded-[var(--radius-md)] p-2 hover:bg-[var(--panel-muted)]" aria-label="Close">
+                <X className="h-4 w-4 text-[var(--foreground-muted)]" />
               </button>
             </div>
 
@@ -258,7 +278,7 @@ export default function ViolationsPage() {
               {letterLoading ? (
                 <LoadingState text="Drafting enforcement letter..." />
               ) : letterError ? (
-                <p className="text-sm font-semibold text-[var(--status-error-text)]">{letterError}</p>
+                <p className="text-sm font-medium text-[var(--status-error-text)]">{letterError}</p>
               ) : letter ? (
                 <>
                   <div className="mb-4 flex items-center gap-2">
@@ -266,9 +286,9 @@ export default function ViolationsPage() {
                       status={letterProviderLabel(letter.generated_by)}
                       type={letter.generated_by === "claude" || letter.generated_by === "groq" ? "success" : "neutral"}
                     />
-                    <span className="text-xs font-semibold text-[var(--foreground-muted)]">{formatDateTime(letter.generated_at)}</span>
+                    <span className="text-xs font-medium text-[var(--foreground-muted)]">{formatDateTime(letter.generated_at)}</span>
                   </div>
-                  <pre className="whitespace-pre-wrap rounded-[var(--radius-inner)] bg-[var(--bg-inner)] p-4 text-sm leading-6 text-[var(--foreground)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
+                  <pre className="whitespace-pre-wrap rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-4 text-sm leading-6 text-[var(--foreground)]">
                     {letter.letter_content}
                   </pre>
                   <TactileButton
