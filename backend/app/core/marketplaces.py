@@ -1,9 +1,9 @@
 """
-Marketplace constants for all 5 registered marketplaces.
+Marketplace constants for all 6 registered marketplaces.
 
 Day 1 scope decision:
   - ACTIVE_MARKETPLACE_ID = 1 (Daraz LK) is the live crawl target for Day 2.
-  - Amazon, Flipkart, Lazada, Tokopedia are registered in the DB and
+  - Amazon, Flipkart, Lazada, Tokopedia, Shopee are registered in the DB and
     visible via /crawl/marketplaces, but live scraping is phase-two.
 """
 
@@ -13,6 +13,7 @@ AMAZON_MARKETPLACE_ID    = 2
 FLIPKART_MARKETPLACE_ID  = 3
 LAZADA_MARKETPLACE_ID    = 4
 TOKOPEDIA_MARKETPLACE_ID = 5
+SHOPEE_MARKETPLACE_ID    = 6
 
 # ─── Names ────────────────────────────────────────────────────────────────────
 DARAZ_MARKETPLACE_NAME     = "Daraz"
@@ -20,6 +21,7 @@ AMAZON_MARKETPLACE_NAME    = "Amazon"
 FLIPKART_MARKETPLACE_NAME  = "Flipkart"
 LAZADA_MARKETPLACE_NAME    = "Lazada"
 TOKOPEDIA_MARKETPLACE_NAME = "Tokopedia"
+SHOPEE_MARKETPLACE_NAME    = "Shopee"
 
 # ─── Country codes ────────────────────────────────────────────────────────────
 DARAZ_COUNTRY_CODE     = "LK"
@@ -27,6 +29,7 @@ AMAZON_COUNTRY_CODE    = "US"
 FLIPKART_COUNTRY_CODE  = "IN"
 LAZADA_COUNTRY_CODE    = "SG"
 TOKOPEDIA_COUNTRY_CODE = "ID"
+SHOPEE_COUNTRY_CODE    = "SG"
 
 # ─── Base URLs ────────────────────────────────────────────────────────────────
 DARAZ_BASE_URL     = "https://www.daraz.lk"
@@ -34,6 +37,7 @@ AMAZON_BASE_URL    = "https://www.amazon.com"
 FLIPKART_BASE_URL  = "https://www.flipkart.com"
 LAZADA_BASE_URL    = "https://www.lazada.com"
 TOKOPEDIA_BASE_URL = "https://www.tokopedia.com"
+SHOPEE_BASE_URL    = "https://shopee.sg"
 
 # ─── Active marketplace for the current crawl pipeline ───────────────────────
 # Day 1 decision: Daraz LK is the Day 2 live-scraping target.
@@ -66,7 +70,7 @@ def resolve_daraz_market(country_code: str | None) -> dict:
     key = (country_code or DARAZ_COUNTRY_CODE).strip().upper()
     return DARAZ_COUNTRY_DOMAINS.get(key, DARAZ_COUNTRY_DOMAINS["LK"])
 
-# ─── Full registry (all 5 marketplaces) ──────────────────────────────────────
+# ─── Full registry (all 6 marketplaces) ──────────────────────────────────────
 # Used by GET /crawl/marketplaces to return the configured marketplace list.
 ALL_MARKETPLACES = [
     {
@@ -106,6 +110,14 @@ ALL_MARKETPLACES = [
         "name":         TOKOPEDIA_MARKETPLACE_NAME,
         "country_code": TOKOPEDIA_COUNTRY_CODE,
         "base_url":     TOKOPEDIA_BASE_URL,
+        "is_active":    False,
+        "scraping_status": "phase_two",
+    },
+    {
+        "id":           SHOPEE_MARKETPLACE_ID,
+        "name":         SHOPEE_MARKETPLACE_NAME,
+        "country_code": SHOPEE_COUNTRY_CODE,
+        "base_url":     SHOPEE_BASE_URL,
         "is_active":    False,
         "scraping_status": "phase_two",
     },

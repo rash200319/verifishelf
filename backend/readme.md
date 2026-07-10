@@ -51,7 +51,7 @@ Covers the platform and infrastructure layer: FastAPI API, MySQL schema, auth, b
 
 **Scalable marketplace design:** `marketplaces` is the canonical catalog for all supported marketplaces, and `brand_marketplaces` maps each brand to the marketplaces it actively tracks with its own crawl cadence.
 
-**MVP marketplace:** Daraz LK only is still the default demo path, but the schema now supports 5 marketplaces without changing the job model.
+**MVP marketplace:** Daraz LK only is still the default demo path, but the schema now supports 6 marketplaces without changing the job model.
 
 ---
 
