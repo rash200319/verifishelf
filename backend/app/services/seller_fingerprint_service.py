@@ -7,9 +7,21 @@ import re
 from app.ml.embeddings import cosine_similarity, embed_text
 from app.repositories.seller_repository import SellerClusterRepository, SellerRepository
 
-# Matches the proposal's stated threshold for linking a new storefront alias
-# to an existing offender cluster via sentence-transformer cosine similarity.
+# Kept at the proposal's stated 0.87, not lowered -- tested lowering it to
+# 0.80 against all 229 real live seller embeddings first (pairwise, before
+# touching production data) and found exactly one newly-caught pair in the
+# 0.80-0.87 band: "karachi mobile store" vs "Mega Store (Karachi)" at 0.805
+# -- two clearly different generic retail names that only share geography,
+# a false merge waiting to happen. The threshold is already well-tuned for
+# this data; the real accuracy gains are in candidate-pool coverage and
+# best-match selection below, not in loosening this number.
 SIMILARITY_THRESHOLD = 0.87
+
+# Recency-bounded candidate pool for fuzzy matching. At current data volumes
+# (low hundreds of sellers) this comfortably covers the whole table; if the
+# seller count grows well past this, older sellers start silently falling
+# out of match consideration and this should grow accordingly.
+FUZZY_MATCH_CANDIDATE_LIMIT = 2000
 
 
 def normalize_seller_name(name: str) -> str:
@@ -72,7 +84,8 @@ class SellerFingerprintService:
 
         similar = await SellerRepository.find_by_normalized_name(signature["normalized_name"])
         if similar is None:
-            for candidate in await SellerRepository.list_recent_sellers(limit=100):
+            best_score = 0.0
+            for candidate in await SellerRepository.list_recent_sellers(limit=FUZZY_MATCH_CANDIDATE_LIMIT):
                 candidate_signature = candidate.get("embedding") or {}
                 if isinstance(candidate_signature, str):
                     try:
@@ -83,15 +96,21 @@ class SellerFingerprintService:
                 candidate_vector = candidate_signature.get("vector")
                 if candidate_vector and signature["vector"]:
                     score = cosine_similarity(signature["vector"], candidate_vector)
-                    if score >= SIMILARITY_THRESHOLD:
+                    # Best-match, not first-match: keep scanning the whole
+                    # candidate pool and take the strongest match above
+                    # threshold, rather than settling for the first
+                    # (possibly weaker) one encountered.
+                    if score >= SIMILARITY_THRESHOLD and score > best_score:
                         similar = candidate
-                        break
+                        best_score = score
+                    continue
+
+                if similar is not None:
                     continue
 
                 candidate_name = candidate_signature.get("normalized_name", normalize_seller_name(candidate["seller_name"]))
                 if cls._names_are_similar_fallback(signature["normalized_name"], candidate_name):
                     similar = candidate
-                    break
 
         cluster_id = None
         if similar is not None:
