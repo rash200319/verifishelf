@@ -28,7 +28,7 @@ def _format_violation(violation: dict) -> ViolationResponse:
     )
 
 
-@router.get("/", response_model=list[ViolationResponse])
+@router.get("", response_model=list[ViolationResponse])
 async def list_violations(current_user: dict = Depends(require_auth)):
     try:
         violations = await ViolationRepository.list_violations_for_brand(current_user["brand_id"])

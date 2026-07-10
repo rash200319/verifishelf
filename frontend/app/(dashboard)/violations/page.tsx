@@ -69,7 +69,7 @@ export default function ViolationsPage() {
       setError("");
     }
     try {
-      const data = await apiRequest<ViolationRecord[]>("/violations/", { session: activeSession });
+      const data = await apiRequest<ViolationRecord[]>("/violations", { session: activeSession });
       setViolations(data);
       setLastUpdated(new Date());
     } catch (requestError) {
