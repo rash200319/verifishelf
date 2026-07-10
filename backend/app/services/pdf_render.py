@@ -67,8 +67,9 @@ def render_weekly_report_pdf(brand_name: str, report: dict) -> bytes:
 
     products = report.get("products") or []
     if products:
-        product_rows = [["Product", "MAP Price", "Avg Observed", "Latest", "Snapshots"]]
+        product_rows = [["Product", "MAP Price", "Avg Observed", "Latest", "Snapshots", "90d Drift"]]
         for product in products:
+            drift_pct = product.get("price_drift_pct")
             product_rows.append(
                 [
                     product.get("product_name", ""),
@@ -76,9 +77,10 @@ def render_weekly_report_pdf(brand_name: str, report: dict) -> bytes:
                     f"{product['avg_observed_price']:.2f}" if product.get("avg_observed_price") is not None else "n/a",
                     f"{product['latest_price']:.2f}" if product.get("latest_price") is not None else "n/a",
                     str(product.get("snapshot_count", 0)),
+                    f"{drift_pct:+.1f}%" if drift_pct is not None else "n/a",
                 ]
             )
-        product_table = Table(product_rows, colWidths=[2.2 * inch, 1 * inch, 1.1 * inch, 1 * inch, 0.9 * inch])
+        product_table = Table(product_rows, colWidths=[1.9 * inch, 0.9 * inch, 1 * inch, 0.9 * inch, 0.8 * inch, 0.8 * inch])
         product_table.setStyle(
             TableStyle(
                 [

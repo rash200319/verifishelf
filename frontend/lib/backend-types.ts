@@ -85,6 +85,9 @@ export interface WeeklyReportProductStat {
   avg_observed_price: number | null;
   snapshot_count: number;
   latest_price: number | null;
+  price_90d_start: number | null;
+  price_90d_end: number | null;
+  price_drift_pct: number | null;
 }
 
 export interface WeeklyReportOffendingSeller {

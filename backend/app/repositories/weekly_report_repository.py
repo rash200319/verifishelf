@@ -79,6 +79,7 @@ class WeeklyReportRepository:
 
         start_dt = datetime.combine(start_date, datetime.min.time())
         end_dt = datetime.combine(end_date, datetime.max.time())
+        ninety_days_ago = end_dt - timedelta(days=90)
 
         async with db.mysql_pool.acquire() as conn:
             async with conn.cursor(DictCursor) as cur:
@@ -150,7 +151,23 @@ class WeeklyReportRepository:
                               AND ps2.snapshot_time BETWEEN %s AND %s
                             ORDER BY ps2.snapshot_time DESC
                             LIMIT 1
-                        ) AS latest_price
+                        ) AS latest_price,
+                        (
+                            SELECT ps3.price
+                            FROM price_snapshots ps3
+                            WHERE ps3.product_id = p.id
+                              AND ps3.snapshot_time >= %s
+                            ORDER BY ps3.snapshot_time ASC
+                            LIMIT 1
+                        ) AS price_90d_start,
+                        (
+                            SELECT ps4.price
+                            FROM price_snapshots ps4
+                            WHERE ps4.product_id = p.id
+                              AND ps4.snapshot_time >= %s
+                            ORDER BY ps4.snapshot_time DESC
+                            LIMIT 1
+                        ) AS price_90d_end
                     FROM products p
                     LEFT JOIN price_snapshots ps
                         ON ps.product_id = p.id
@@ -159,7 +176,7 @@ class WeeklyReportRepository:
                     GROUP BY p.id, p.name, p.map_price
                     ORDER BY p.id
                     """,
-                    (start_dt, end_dt, start_dt, end_dt, brand_id),
+                    (start_dt, end_dt, ninety_days_ago, ninety_days_ago, start_dt, end_dt, brand_id),
                 )
                 products = await cur.fetchall()
 

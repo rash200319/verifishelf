@@ -30,6 +30,9 @@ class WeeklyReportProductStat(BaseModel):
     avg_observed_price: float | None
     snapshot_count: int
     latest_price: float | None
+    price_90d_start: float | None = None
+    price_90d_end: float | None = None
+    price_drift_pct: float | None = None
 
 
 class WeeklyReportOffendingSeller(BaseModel):

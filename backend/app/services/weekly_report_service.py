@@ -88,16 +88,26 @@ class WeeklyReportService:
                 latest_price = WeeklyReportService._to_float(product.get("latest_price"))
                 avg_text = f"{avg_price:.2f}" if avg_price is not None else "n/a"
                 latest_text = f"{latest_price:.2f}" if latest_price is not None else "n/a"
+                drift_pct = product.get("price_drift_pct")
+                drift_text = f"{drift_pct:+.1f}% over 90 days" if drift_pct is not None else "90-day trend: n/a"
                 lines.append(
                     f"- {product['product_name']}: MAP {map_price:.2f}, "
                     f"avg observed {avg_text}, latest {latest_text}, "
-                    f"{int(product.get('snapshot_count') or 0)} snapshots"
+                    f"{int(product.get('snapshot_count') or 0)} snapshots, price drift {drift_text}"
                 )
 
         return "\n".join(lines)
 
     @staticmethod
+    def _compute_price_drift_pct(price_90d_start: float | None, price_90d_end: float | None) -> float | None:
+        if price_90d_start is None or price_90d_end is None or price_90d_start == 0:
+            return None
+        return round((price_90d_end - price_90d_start) / price_90d_start * 100, 2)
+
+    @staticmethod
     def _serialize_product_row(row: dict) -> dict:
+        price_90d_start = WeeklyReportService._to_float(row.get("price_90d_start"))
+        price_90d_end = WeeklyReportService._to_float(row.get("price_90d_end"))
         return {
             "product_id": int(row["product_id"]),
             "product_name": row["product_name"],
@@ -105,6 +115,9 @@ class WeeklyReportService:
             "avg_observed_price": WeeklyReportService._to_float(row.get("avg_observed_price")),
             "snapshot_count": int(row.get("snapshot_count") or 0),
             "latest_price": WeeklyReportService._to_float(row.get("latest_price")),
+            "price_90d_start": price_90d_start,
+            "price_90d_end": price_90d_end,
+            "price_drift_pct": WeeklyReportService._compute_price_drift_pct(price_90d_start, price_90d_end),
         }
 
     @staticmethod
