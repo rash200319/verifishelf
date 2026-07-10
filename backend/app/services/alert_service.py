@@ -1,5 +1,6 @@
 """
-Best-effort violation alert notifications -- Slack webhook and/or email.
+Best-effort violation alert notifications -- Slack webhook and/or email
+(via SendGrid).
 
 These are the two channels named as concrete plan features in the pricing
 tier ("email alerts" on Starter, "Slack alerts" on Growth) that previously
@@ -15,12 +16,12 @@ from __future__ import annotations
 
 import logging
 import os
-import smtplib
-from email.message import EmailMessage
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+SENDGRID_SEND_URL = "https://api.sendgrid.com/v3/mail/send"
 
 
 def _format_message(context: dict) -> str:
@@ -50,29 +51,30 @@ def _send_slack_alert(context: dict) -> bool:
 
 
 def _send_email_alert(context: dict) -> bool:
-    smtp_host = os.getenv("SMTP_HOST")
+    api_key = os.getenv("SENDGRID_API_KEY")
+    from_email = os.getenv("SENDGRID_FROM_EMAIL")
     alert_to = os.getenv("ALERT_EMAIL_TO")
-    if not smtp_host or not alert_to:
+    if not api_key or not from_email or not alert_to:
         return False
 
-    message = EmailMessage()
-    message["Subject"] = f"MAP violation detected - {context.get('product_name')}"
-    message["From"] = os.getenv("SMTP_FROM", "alerts@verifishelf.local")
-    message["To"] = alert_to
-    message.set_content(_format_message(context))
+    payload = {
+        "personalizations": [{"to": [{"email": alert_to}]}],
+        "from": {"email": from_email},
+        "subject": f"MAP violation detected - {context.get('product_name')}",
+        "content": [{"type": "text/plain", "value": _format_message(context)}],
+    }
 
     try:
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-            smtp_user = os.getenv("SMTP_USER")
-            smtp_password = os.getenv("SMTP_PASSWORD")
-            if smtp_user and smtp_password:
-                server.starttls()
-                server.login(smtp_user, smtp_password)
-            server.send_message(message)
+        response = httpx.post(
+            SENDGRID_SEND_URL,
+            headers={"Authorization": f"Bearer {api_key}"},
+            json=payload,
+            timeout=10.0,
+        )
+        response.raise_for_status()
         return True
     except Exception:
-        logger.exception("Email alert failed for violation %s", context.get("violation_id"))
+        logger.exception("SendGrid alert failed for violation %s", context.get("violation_id"))
         return False
 
 
