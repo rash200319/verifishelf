@@ -17,6 +17,7 @@ from app.repositories.crawl_job_repository import CrawlJobRepository
 from app.schemas.crawl_jobs import CrawlJobResponse, CrawlScheduleResponse, ProxyHealthRecord
 from app.schemas.marketplace_config import MarketplaceConfigRecord
 from app.schemas.marketplace_preview import MarketplacePreviewRecord
+from app.services.crawl_scheduler_service import CrawlSchedulerService
 from app.services.marketplace_preview_service import load_marketplace_previews
 
 router = APIRouter(prefix="/crawl", tags=["crawl"])
@@ -73,6 +74,29 @@ async def get_marketplace_preview(current_user: dict = Depends(require_auth)):
         return load_marketplace_previews()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/jobs/trigger", response_model=CrawlJobResponse)
+async def trigger_crawl(current_user: dict = Depends(require_auth)):
+    """
+    Run a crawl for the logged-in user's brand right now instead of
+    waiting for the next scheduler tick. Idempotent -- clicking this while
+    a job is already queued/running for the brand just returns that job
+    rather than enqueuing a second one.
+    """
+    try:
+        result = await CrawlSchedulerService.trigger_crawl_now(current_user["brand_id"])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if not result["already_running"]:
+        from app.tasks.crawl_tasks import run_brand_crawl
+
+        run_brand_crawl.delay(result["job"]["id"], current_user["brand_id"], result["country_code"])
+
+    return _format_job(result["job"])
 
 
 @router.get("/jobs", response_model=list[CrawlJobResponse])

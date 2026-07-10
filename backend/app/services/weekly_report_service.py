@@ -7,6 +7,19 @@ from app.services import llm_client
 
 
 class WeeklyReportService:
+    # Fallback values for reports generated before report_content was a
+    # structured JSON payload (or any row whose summary is otherwise
+    # incomplete) -- merged under content["summary"] so a legacy/partial
+    # row renders with zeros instead of failing WeeklyReportResponse's
+    # required-field validation for the whole brand's report list.
+    _EMPTY_SUMMARY = {
+        "listings_monitored": 0,
+        "price_snapshots": 0,
+        "violations_detected": 0,
+        "violations_open": 0,
+        "active_promo_windows": 0,
+    }
+
     NARRATIVE_SYSTEM_PROMPT = (
         "You are a brand-protection analyst writing a weekly MAP-monitoring "
         "report for a client brand. Write 2-4 short paragraphs of plain-English "
@@ -116,7 +129,7 @@ class WeeklyReportService:
             "brand_id": row["brand_id"],
             "report_start_date": row["report_start_date"],
             "report_end_date": row["report_end_date"],
-            "summary": content.get("summary", {}),
+            "summary": {**WeeklyReportService._EMPTY_SUMMARY, **content.get("summary", {})},
             "products": content.get("products", []),
             "narrative": content.get("narrative", ""),
             "narrative_source": content.get("narrative_source", "rule_based"),
