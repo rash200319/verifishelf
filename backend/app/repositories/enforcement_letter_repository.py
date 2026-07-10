@@ -27,7 +27,7 @@ class EnforcementLetterRepository:
 
                 await cur.execute(
                     """
-                    SELECT id, violation_id, letter_content, generated_by, screenshot_base64, generated_at
+                    SELECT id, violation_id, letter_content, generated_by, screenshot_base64, status, sent_at, generated_at
                     FROM enforcement_letters
                     WHERE id = %s
                     """,
@@ -44,13 +44,38 @@ class EnforcementLetterRepository:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute(
                     """
-                    SELECT id, violation_id, letter_content, generated_by, screenshot_base64, generated_at
+                    SELECT id, violation_id, letter_content, generated_by, screenshot_base64, status, sent_at, generated_at
                     FROM enforcement_letters
                     WHERE violation_id = %s
                     ORDER BY generated_at DESC, id DESC
                     LIMIT 1
                     """,
                     (violation_id,),
+                )
+                return await cur.fetchone()
+
+    @staticmethod
+    async def mark_sent(letter_id: int):
+        if db.mysql_pool is None:
+            raise RuntimeError("MySQL pool is not initialized")
+
+        async with db.mysql_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(
+                    """
+                    UPDATE enforcement_letters
+                    SET status = 'sent', sent_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                    """,
+                    (letter_id,),
+                )
+                await cur.execute(
+                    """
+                    SELECT id, violation_id, letter_content, generated_by, screenshot_base64, status, sent_at, generated_at
+                    FROM enforcement_letters
+                    WHERE id = %s
+                    """,
+                    (letter_id,),
                 )
                 return await cur.fetchone()
 

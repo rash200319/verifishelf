@@ -170,6 +170,26 @@ class BrandRepository:
             return await cur.fetchone()
 
     @staticmethod
+    async def list_approved_brands(conn=None):
+        if db.mysql_pool is None and conn is None:
+            raise RuntimeError("MySQL pool is not initialized")
+
+        if conn is None:
+            async with db.mysql_pool.acquire() as pooled_conn:
+                return await BrandRepository.list_approved_brands(conn=pooled_conn)
+
+        async with conn.cursor(DictCursor) as cur:
+            await cur.execute(
+                """
+                SELECT id, name
+                FROM brands
+                WHERE status = 'approved'
+                ORDER BY id ASC
+                """
+            )
+            return await cur.fetchall()
+
+    @staticmethod
     async def list_pending_brands(conn=None):
         if db.mysql_pool is None and conn is None:
             raise RuntimeError("MySQL pool is not initialized")

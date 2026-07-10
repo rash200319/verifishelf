@@ -143,6 +143,8 @@ export interface EnforcementLetterRecord {
   letter_content: string;
   generated_by: string;
   screenshot_base64: string | null;
+  status: string;
+  sent_at: string | null;
   generated_at: string;
 }
 

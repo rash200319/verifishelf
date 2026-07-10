@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ExternalLink, FileText, RefreshCw, ShieldAlert, Sparkles, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, FileText, RefreshCw, Send, ShieldAlert, Sparkles, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { TactileButton } from "@/components/ui/tactile-button";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -49,6 +49,7 @@ export default function ViolationsPage() {
   const [letterLoading, setLetterLoading] = useState(false);
   const [letterError, setLetterError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [markSentLoading, setMarkSentLoading] = useState(false);
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
@@ -132,6 +133,22 @@ export default function ViolationsPage() {
       setLetterError(requestError instanceof Error ? requestError.message : "Unable to generate enforcement letter");
     } finally {
       setLetterLoading(false);
+    }
+  };
+
+  const markSent = async (violationId: number) => {
+    if (!session) return;
+    setMarkSentLoading(true);
+    try {
+      const data = await apiRequest<EnforcementLetterRecord>(`/enforcement/violations/${violationId}/send`, {
+        method: "POST",
+        session,
+      });
+      setLetter(data);
+    } catch (requestError) {
+      setLetterError(requestError instanceof Error ? requestError.message : "Unable to mark letter as sent");
+    } finally {
+      setMarkSentLoading(false);
     }
   };
 
@@ -281,12 +298,21 @@ export default function ViolationsPage() {
                 <p className="text-sm font-medium text-[var(--status-error-text)]">{letterError}</p>
               ) : letter ? (
                 <>
-                  <div className="mb-4 flex items-center gap-2">
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
                     <StatusBadge
                       status={letterProviderLabel(letter.generated_by)}
                       type={letter.generated_by === "claude" || letter.generated_by === "groq" ? "success" : "neutral"}
                     />
-                    <span className="text-xs font-medium text-[var(--foreground-muted)]">{formatDateTime(letter.generated_at)}</span>
+                    {letter.status === "sent" ? (
+                      <StatusBadge status="Sent" type="success" />
+                    ) : (
+                      <StatusBadge status="Draft" type="neutral" />
+                    )}
+                    <span className="text-xs font-medium text-[var(--foreground-muted)]">
+                      {letter.status === "sent" && letter.sent_at
+                        ? `Sent ${formatDateTime(letter.sent_at)}`
+                        : `Drafted ${formatDateTime(letter.generated_at)}`}
+                    </span>
                   </div>
                   {letter.screenshot_base64 ? (
                     <div className="mb-4">
@@ -303,13 +329,27 @@ export default function ViolationsPage() {
                   <pre className="whitespace-pre-wrap rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--panel-muted)] p-4 text-sm leading-6 text-[var(--foreground)]">
                     {letter.letter_content}
                   </pre>
-                  <TactileButton
-                    variant="secondary"
-                    className="mt-4"
-                    onClick={() => void openLetter(activeViolationId, { forceRegenerate: true })}
-                  >
-                    <Sparkles className="mr-2 h-4 w-4" /> Regenerate
-                  </TactileButton>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <TactileButton
+                      variant="secondary"
+                      onClick={() => void openLetter(activeViolationId, { forceRegenerate: true })}
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" /> Regenerate
+                    </TactileButton>
+                    {letter.status === "sent" ? (
+                      <TactileButton variant="secondary" disabled>
+                        <CheckCircle2 className="mr-2 h-4 w-4" /> Sent
+                      </TactileButton>
+                    ) : (
+                      <TactileButton
+                        variant="primary"
+                        disabled={markSentLoading}
+                        onClick={() => void markSent(activeViolationId)}
+                      >
+                        <Send className="mr-2 h-4 w-4" /> {markSentLoading ? "Marking as sent..." : "Mark as Sent"}
+                      </TactileButton>
+                    )}
+                  </div>
                 </>
               ) : null}
             </div>

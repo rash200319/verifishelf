@@ -36,6 +36,8 @@ class EnforcementLetterResponse(BaseModel):
     letter_content: str
     generated_by: str
     screenshot_base64: str | None = None
+    status: str = "draft"
+    sent_at: datetime | None = None
     generated_at: datetime
 
 

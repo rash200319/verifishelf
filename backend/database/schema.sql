@@ -270,6 +270,12 @@ CREATE TABLE enforcement_letters (
     -- never blocks letter generation (see services/screenshot_service.py).
     screenshot_base64 LONGTEXT NULL,
 
+    -- 'draft' until a brand admin explicitly marks it sent (there's no real
+    -- seller email/contact to transmit to automatically -- this is the
+    -- brand manager's own record of having actioned the letter elsewhere).
+    status VARCHAR(20) NOT NULL DEFAULT 'draft',
+    sent_at TIMESTAMP NULL,
+
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (violation_id)

@@ -16,13 +16,18 @@ This README describes what's **actually implemented and verified**, not an aspir
 | **Proxy routing** | ✅ Live | Per-brand deterministic session selection, health tracking with cooldown/rotation on repeated failures, and a non-geo-targeted overflow pool as a last resort. All raise a clear error rather than silently faking a connection. |
 | **ML violation classifier** | ✅ Live | Trained XGBoost model (real training pipeline, real/synthetic data split reported honestly) replaces a hardcoded confidence value. |
 | **Seller fingerprinting** | ✅ Live | Real `sentence-transformers` embeddings + cosine-similarity clustering link repeat offenders across storefront name changes — not string matching. |
-| **AI enforcement letters & reports** | ✅ Live | Claude first, [Groq](https://console.groq.com) free-tier as fallback, deterministic template as the last resort if neither LLM is configured. Whichever one actually generated the text is recorded honestly (`generated_by` / `narrative_source`), never assumed. |
+| **AI enforcement letters & reports** | ✅ Live | Claude first, [Groq](https://console.groq.com) free-tier as fallback, deterministic template as the last resort if neither LLM is configured. Whichever one actually generated the text is recorded honestly (`generated_by` / `narrative_source`), never assumed. Each letter also carries a real headless-browser (Playwright) screenshot of the violating listing, captured through the same proxy as the crawl, and can be marked **sent** once a brand admin has actually actioned it elsewhere (no real seller contact info to email automatically). |
+| **Violation alerts** | ✅ Live | Slack webhook and/or SendGrid email fire automatically the moment a new violation is detected — both optional/independently configured, best-effort (a failed or unconfigured channel never blocks the crawl). |
+| **Weekly reports** | ✅ Live | Auto-generated every Monday morning for every approved brand via Celery Beat (not just on-demand) — top-5 offending sellers with listing URLs, a repeat-offender count, and a 90-day price-drift trend per product, alongside the core violation/listing counters. Delivered as JSON, PDF, and an AI narrative. |
 | **Role-based access** | ✅ Live | Three real logins: **superadmin** (platform-level brand approval, not scoped to any brand), **brand admin**, **brand analyst** — no shared secrets or static header keys anywhere. |
 | **Brand registration / approval** | ✅ Live | KYB-style application form (registration number, business address, industry, contact info, authorization attestation) reviewed by a superadmin before a brand gets access. |
 | **Promo override system** | ✅ Live | Brand-approved discount windows are excluded from violation detection, so a real sale doesn't get flagged as a violation. |
 | **Dashboards** | ✅ Live | Violations feed, seller-cluster view, crawl ops, weekly reports, invites — all in the Next.js frontend. |
-| **Multi-marketplace support** | 🚧 Roadmap | Amazon/Flipkart/Lazada/Tokopedia are registered in the schema and shown as "phase two" in the UI, but only Daraz actually crawls live. |
+| **Multi-marketplace support** | 🚧 Roadmap | Amazon/Flipkart/Lazada/Tokopedia/Shopee are registered in the schema and shown as "phase two" in the UI, but only Daraz actually crawls live. |
 | **Postgres/pgvector/TimescaleDB** | 🚧 Roadmap | Runs on MySQL today; embeddings are stored as JSON with in-process cosine similarity rather than a vector index. Deliberate scope call for now, not an oversight. |
+| **Grey-market / counterfeit classification** | 🚧 Roadmap | The classifier is a real binary "genuine MAP violation vs. likely dismissed" model. It does not (yet) distinguish grey-market or counterfeit listings as separate classes — that needs real labeled data this project doesn't have, and faking it would be worse than not having it. |
+| **Self-service product catalog** | 🚧 Not done | Products/SKUs/MAP prices are seeded via SQL today. No UI/API for a brand admin to add or edit their own catalog yet. |
+| **Authorized distributor allowlist** | 🚧 Not done | Every seller below MAP is flagged the same way; there's no per-seller "this one is an authorized reseller" exemption. The promo-window system is today's mechanism for sanctioned exceptions (product/date-scoped, not seller-identity-scoped). |
 | **Deployment** | 🚧 Not done | Runs locally via Docker Compose. No hosting/CI pipeline yet. |
 | **Billing** | 🚧 Not done | Pricing tiers exist as a concept (Starter/Growth/Enterprise) but there's no Stripe/payment integration. |
 
@@ -66,7 +71,9 @@ This README describes what's **actually implemented and verified**, not an aspir
 
 **Request flow:** `Routes → Services → Repositories → MySQL` (the same layering throughout the backend).
 
-**Crawl flow:** Celery Beat dispatches due brand/marketplace pairs on a schedule → a worker crawls the real Daraz ajax search API through a proxy resolved by brand+country → listings and price snapshots are persisted → the classifier scores each listing against the brand's MAP price (checking promo overrides first) → seller fingerprinting resolves/links the seller → violations, if any, land in the dashboard.
+**Crawl flow:** Celery Beat dispatches due brand/marketplace pairs on a schedule → a worker crawls the real Daraz ajax search API through a proxy resolved by brand+country → listings and price snapshots are persisted → the classifier scores each listing against the brand's MAP price (checking promo overrides first) → seller fingerprinting resolves/links the seller → violations, if any, land in the dashboard and fire a best-effort Slack/email alert.
+
+**Weekly report flow:** a separate Celery Beat entry fires every Monday morning → generates a report for every approved brand (the same on-demand path a user can also trigger manually) → aggregates the week's metrics plus a 90-day price-drift trend and top-5 offending sellers → an LLM (or the rule-based fallback) writes the narrative → stored and available as JSON/PDF on the dashboard.
 
 ---
 
@@ -80,6 +87,8 @@ This README describes what's **actually implemented and verified**, not an aspir
 | Frontend | Next.js (App Router) + Tailwind | Token-based sessions (localStorage), no server-side auth middleware |
 | ML | XGBoost, `sentence-transformers` (`all-MiniLM-L6-v2`), scikit-learn | Real trained models, not rule-only heuristics |
 | LLM | Anthropic Claude (primary), Groq (free-tier fallback) | Honest fallback chain, not a single hardcoded provider |
+| Headless browser | Playwright (Chromium) | Real screenshot evidence for enforcement letters, routed through the same proxy as the crawl. Not used for the Daraz listing crawl itself — that hits Daraz's own ajax endpoint directly, which is faster/more reliable for that specific target. |
+| Alerts | Slack incoming webhook, SendGrid API | Both optional, best-effort, httpx-based like everything else outbound — no new heavyweight SDKs |
 | PDF export | ReportLab | Pure-Python, no system dependency (deliberately not WeasyPrint/Puppeteer) |
 | Auth | bcrypt + custom HMAC-signed tokens | No unsalted hashes, no hardcoded secrets — the app refuses to start without real ones |
 | Proxy | Residential + ISP pools via env-configured credentials | Real geo-targeted routing, not a mocked layer |
@@ -168,7 +177,7 @@ verifishelf/
 │   │   ├── ml/                # Feature engineering, dataset building, classifier training
 │   │   ├── core/              # Auth, DB, proxy routing, Celery config
 │   │   └── tasks/             # Celery task definitions
-│   ├── alembic/versions/      # Schema migrations (0001-0005)
+│   ├── alembic/versions/      # Schema migrations (0001-0008)
 │   ├── database/              # Consolidated schema + seed SQL
 │   ├── scripts/                # Diagnostic/demo scripts (proxy smoke test, network exploration, ...)
 │   ├── tests/                  # 44 unit tests
@@ -189,3 +198,5 @@ See **[`backend/readme.md`](backend/readme.md)** for the full API reference, env
 - **The proxy layer is real, not mocked** — this was verified by direct testing against the live Daraz PK site, including discovering that a plain page load returns an empty JS shell with no listing data at all, which is why the adapter calls Daraz's own internal ajax search endpoint instead.
 - **Seller "account age" is a proxy, not the marketplace's real signal** — it's "how long we've been tracking this seller," since Daraz doesn't expose real registration dates. This is documented in the code, not hidden.
 - **MySQL, not the originally-proposed Postgres/pgvector/TimescaleDB stack.** A deliberate scope decision to avoid a risky mid-project database migration, not an oversight.
+- **Daraz blanks its page for detected headless browsers, separately from IP reputation.** Even through a verified-clean residential proxy, Chromium's automation fingerprint (`navigator.webdriver`, etc.) got the product page stuck on a blank loading skeleton — confirmed by capturing identical screenshots across repeated attempts regardless of wait time. Fixed with a standard `navigator.webdriver` spoof. This is also why the core listing crawl uses a direct ajax call instead of a full browser: no browser fingerprint to detect in the first place.
+- **Enforcement letters can be marked "sent," but nothing actually emails the seller.** There's no real seller contact address scraped from the marketplace to send to — "sent" is the brand admin's own record of having actioned the letter through their own channel, not an automated transmission.
