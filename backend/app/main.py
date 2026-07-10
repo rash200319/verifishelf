@@ -22,7 +22,7 @@ redis_health_task = None
 cors_origins = os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 cors_origin_regex = os.getenv(
     "CORS_ALLOW_ORIGIN_REGEX",
-    r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|(?:10|192\.168|172\.(?:1[6-9]|2\d|3[0-1]))\.\d{1,3}\.\d{1,3})(?::3000)$",
+    r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|(?:10|192\.168|172\.(?:1[6-9]|2\d|3[0-1]))\.\d{1,3}\.\d{1,3})(?::\d+)?$",
 )
 app.add_middleware(
     CORSMiddleware,
