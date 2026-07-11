@@ -58,6 +58,15 @@ export interface CreateUserResponse {
   };
 }
 
+export interface ProductRecord {
+  id: number;
+  brand_id: number;
+  name: string;
+  description: string | null;
+  map_price: number;
+  created_at: string;
+}
+
 export interface PromoRecord {
   id: number;
   brand_id: number;

@@ -210,6 +210,27 @@ Passwords are bcrypt-hashed (`app/core/auth.py::hash_password`/`verify_password`
 
 ---
 
+### Products (auth required)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/products` | any brand user | List products for the logged-in brand |
+| `POST` | `/products` | **admin only** | Add a new product (name, optional description, MAP price) |
+| `PUT` | `/products/{id}` | **admin only** | Edit an existing product |
+
+Add/edit is admin-only for the same reason promo creation is: it changes what the whole brand monitors, so an analyst shouldn't be able to do it unchecked. Adding a product here *is* what makes it a real crawl target — there's no separate "activate for crawling" step.
+
+**Create/update body (same shape for both):**
+```json
+{
+  "name": "Philips Air Fryer",
+  "description": "Optional internal notes",
+  "map_price": 32000.00
+}
+```
+
+---
+
 ### Promo Calendar
 
 | Method | Path | Auth | Description |
@@ -298,7 +319,7 @@ On-demand generation isn't the only way a report gets created: Celery Beat's `ge
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/violations/` | List violations for brand — severity, status, real classifier confidence, seller + product names |
+| `GET` | `/violations` | List violations for brand (300 most recent, newest first) — severity, status, real classifier confidence, seller + product names |
 
 ---
 
@@ -493,10 +514,11 @@ backend/
 │   │   ├── auth.py                # login, register, join-with-invite, registration-status
 │   │   ├── admin.py               # Superadmin (torchproxy/*) + brand-admin routes
 │   │   ├── brands.py              # Invite create/list
+│   │   ├── products.py            # Product catalog (add/edit is admin-only)
 │   │   ├── promos.py              # Promo calendar (create is admin-only)
 │   │   ├── reports.py             # Weekly reports + PDF export
 │   │   ├── crawl.py               # Crawl jobs, schedule, proxy health, marketplace preview
-│   │   ├── violations.py          # GET /violations/
+│   │   ├── violations.py          # GET /violations
 │   │   ├── sellers.py             # GET /sellers/clusters
 │   │   └── enforcement.py         # Letter generation (admin-only) + fetch
 │   ├── services/
@@ -551,6 +573,7 @@ backend/
 For anyone extending this rather than reading it top to bottom:
 
 - **Crawl → classify → cluster**: `CrawlService.crawl_product()` calls the Daraz adapter, then the ML classifier (`app/ml/`), then `SellerFingerprintService`, then `ViolationService` — in that order, per listing.
+- **Retraining the classifier**: `python -m app.ml.train_classifier` pulls real violation history + synthetic bootstrap data, retrains, and overwrites `app/ml/artifacts/violation_classifier.json`. This only affects scoring for *future* violations — after a retrain that meaningfully changes scoring behavior, run `python scripts/rescore_violations.py` to re-score every existing violation's `classifier_confidence` with the new model (mirrors the training data builder's exact real-row methodology: chronological per-seller history, scored as of each violation's own `detected_at`, not "now").
 - **Violation → promo override**: `ViolationService` checks `PromoService.is_below_map_allowed()` before ever creating a violation row, so approved sale windows never get flagged.
 - **Violation → enforcement letter**: `POST /enforcement/violations/{id}` reads the violation + product + brand context and drafts a letter via `llm_client.generate_text()`.
 - **Frontend auth**: every dashboard page reads `Authorization: Bearer <token>` from `localStorage`; `POST /auth/login` is the only place a token is issued.

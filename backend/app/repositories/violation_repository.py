@@ -89,14 +89,14 @@ class ViolationRepository:
                 return int(row["violation_count"]) if row else 0
 
     @staticmethod
-    async def list_violations_for_brand(brand_id: int):
+    async def list_violations_for_brand(brand_id: int, limit: int = 300):
         if db.mysql_pool is None:
             raise RuntimeError("MySQL pool is not initialized")
         async with db.mysql_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute(
                     """
-                    SELECT 
+                    SELECT
                         v.id,
                         v.listing_id,
                         v.map_price,
@@ -122,8 +122,9 @@ class ViolationRepository:
                     JOIN sellers s ON l.seller_id = s.id
                     WHERE p.brand_id = %s
                     ORDER BY v.detected_at DESC
+                    LIMIT %s
                     """,
-                    (brand_id,)
+                    (brand_id, limit)
                 )
                 rows = await cur.fetchall()
                 

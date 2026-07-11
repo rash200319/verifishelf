@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { FileText, Fingerprint, LayoutDashboard, LogOut, Radar, Settings2, ShieldAlert, ShieldCheck, Sparkles, Menu, X, Users } from "lucide-react";
+import { FileText, Fingerprint, LayoutDashboard, LogOut, Package, Radar, Settings2, ShieldAlert, ShieldCheck, Sparkles, Menu, X, Users } from "lucide-react";
 import { clearSession, loadSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,6 +16,7 @@ const navigationByRole = {
   superadmin: [{ href: "/admin", label: "TorchProxy", icon: Settings2 }],
   admin: [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+    { href: "/products", label: "Products", icon: Package },
     { href: "/violations", label: "Violations", icon: ShieldAlert },
     { href: "/sellers", label: "Sellers", icon: Fingerprint },
     { href: "/admin", label: "TorchProxy", icon: Settings2 },

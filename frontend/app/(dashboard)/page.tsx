@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Building2, KeyRound, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DataInput } from "@/components/ui/data-input";
@@ -77,7 +78,7 @@ export default function LoginPage() {
             {[
               { icon: ShieldCheck, title: "Secure access", detail: "Backend token-based login for secure authorization." },
               { icon: Building2, title: "Brand scoped", detail: "Every session is tied to one brand tenant." },
-              { icon: KeyRound, title: "Direct login", detail: "No extra onboarding flow on this public portal." },
+              { icon: KeyRound, title: "New brand?", detail: "Apply for access with a short KYB application, reviewed before you get in." },
             ].map((item) => (
               <Card key={item.title} className="p-4">
                 <item.icon className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
@@ -151,6 +152,15 @@ export default function LoginPage() {
               >
                 Contact support
               </a>
+            </p>
+          </div>
+
+          <div className="mt-5 border-t border-[var(--border)] pt-5 text-center">
+            <p className="text-sm text-[var(--foreground-muted)]">
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="font-medium text-[var(--accent)] hover:underline">
+                Register your brand
+              </Link>
             </p>
           </div>
         </Card>

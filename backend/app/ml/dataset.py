@@ -104,29 +104,45 @@ def _sample_synthetic_row(rng: np.random.Generator) -> dict:
     # Correlate the two now: a fraction of rows simulate a mismatched-product
     # search hit (high delta, low similarity), the rest simulate a genuine
     # same-product reseller (moderate delta, high similarity).
+    #
+    # title_similarity's *scale* changed when it moved from TF-IDF to
+    # sentence-transformer semantic similarity (see features.py) -- real
+    # measurements on actual crawled listings put accessory/mismatch cases
+    # around a 0.43 mean and genuine matches around a 0.61 mean, a much
+    # narrower band than TF-IDF's near-0/near-1 spread. These Beta params
+    # are fit to those real means, not guessed.
     is_mismatch_case = rng.random() < 0.3
     if is_mismatch_case:
         price_delta_pct = float(rng.uniform(60.0, 99.9))
-        title_similarity = float(np.clip(rng.beta(1.5, 6), 0.0, 1.0))
+        title_similarity = float(np.clip(rng.beta(4.3, 5.7), 0.0, 1.0))  # mean ~0.43
     else:
         price_delta_pct = float(np.clip(rng.exponential(scale=15.0) + 0.5, 0.5, 70.0))
-        title_similarity = float(np.clip(rng.beta(5, 2), 0.0, 1.0))
+        title_similarity = float(np.clip(rng.beta(6.1, 3.9), 0.0, 1.0))  # mean ~0.61
 
     is_burner_like = rng.random() < 0.15
     account_age_days = float(rng.uniform(0, 3)) if is_burner_like else float(rng.exponential(scale=180.0))
     historical_violation_count = int(rng.poisson(lam=1.2))
 
-    # title_similarity is the dominant term on purpose: a huge price delta
-    # on a mismatched product should NOT read as a confident violation, it
-    # should read as a probable false positive. Price delta and repeat-
-    # offender history only matter once the listing plausibly is the same
-    # product.
+    # Gate, not just weight: with the compressed 0.43-0.61 semantic-
+    # similarity scale, a simple weighted sum lets a big price delta on a
+    # mismatched product outvote a merely-lower similarity score -- exactly
+    # the bug being fixed. MATCH_PLAUSIBLE_THRESHOLD (0.52) sits at the
+    # empirical midpoint between the real mismatch mean (0.43) and genuine
+    # mean (0.61). Below it, price delta and seller history are heavily
+    # dampened -- they only really matter once the listing plausibly *is*
+    # the same product, matching the reasoning that was already intended
+    # here but not actually enforced by a linear combination.
+    match_plausible = title_similarity >= 0.52
+    signal_weight = 1.0 if match_plausible else 0.15
+    delta_term = (min(price_delta_pct, 60.0) / 60.0) * signal_weight
+    history_term = (min(historical_violation_count, 5) / 5.0) * signal_weight
+    burner_term = 0.8 if (account_age_days < 3 and match_plausible) else 0.0
+
     logit = (
-        3.2 * title_similarity
-        + 1.0 * min(price_delta_pct, 60.0) / 60.0
-        + 0.8 * min(historical_violation_count, 5) / 5.0
-        + (0.8 if account_age_days < 3 else 0.0)
-        - 1.9
+        12.0 * (title_similarity - 0.52)
+        + 1.0 * delta_term
+        + 0.8 * history_term
+        + burner_term
     )
     p_genuine = _sigmoid(logit)
     label = int(rng.random() < p_genuine)
