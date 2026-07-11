@@ -37,6 +37,7 @@ VIEWPORT = {"width": 1280, "height": 900}
 # chars of visible text (just the static chrome around an empty product
 # slot); a genuine product page is consistently several hundred+.
 MIN_RENDERED_TEXT_CHARS = 200
+CONTENT_CHECK_TIMEOUT_S = 5.0
 
 # One retry on a blank capture, since this failure mode has been observed
 # to be intermittent for the *same* listing/proxy session rather than a
@@ -77,7 +78,19 @@ async def _capture_once(browser, listing_url: str) -> bytes | None:
         await page.goto(listing_url, timeout=NAVIGATION_TIMEOUT_MS, wait_until="commit")
         await page.wait_for_timeout(RENDER_SETTLE_MS)
 
-        rendered_text_length = await page.evaluate("document.body ? document.body.innerText.length : 0")
+        # Unlike goto/screenshot above, evaluate() has no built-in timeout --
+        # if the page/renderer wedges after a proxy hiccup this would
+        # otherwise hang the request indefinitely instead of failing
+        # best-effort like everything else here.
+        try:
+            rendered_text_length = await asyncio.wait_for(
+                page.evaluate("document.body ? document.body.innerText.length : 0"),
+                timeout=CONTENT_CHECK_TIMEOUT_S,
+            )
+        except asyncio.TimeoutError:
+            logger.info("Content-readiness check timed out; treating as a blank capture.")
+            return None
+
         if rendered_text_length < MIN_RENDERED_TEXT_CHARS:
             logger.info(
                 "Listing page rendered only %d chars of text (< %d threshold); "
