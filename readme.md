@@ -26,7 +26,7 @@ This README describes what's **actually implemented and verified**, not an aspir
 | **Multi-marketplace support** | 🚧 Roadmap | Amazon/Flipkart/Lazada/Tokopedia/Shopee are registered in the schema and shown as "phase two" in the UI, but only Daraz actually crawls live. |
 | **Postgres/pgvector/TimescaleDB** | 🚧 Roadmap | Runs on MySQL today; embeddings are stored as JSON with in-process cosine similarity rather than a vector index. Deliberate scope call for now, not an oversight. |
 | **Grey-market / counterfeit classification** | 🚧 Roadmap | The classifier is a real binary "genuine MAP violation vs. likely dismissed" model. It does not (yet) distinguish grey-market or counterfeit listings as separate classes — that needs real labeled data this project doesn't have, and faking it would be worse than not having it. |
-| **Self-service product catalog** | 🚧 Not done | Products/SKUs/MAP prices are seeded via SQL today. No UI/API for a brand admin to add or edit their own catalog yet. |
+| **Self-service product catalog** | ✅ Live | Brand admins add/edit products (name, description, MAP price) from the dashboard — `POST`/`PUT /products`, admin-only (analysts can view the catalog, not change it). Adding a product here is what makes it a real crawl target; no separate step. |
 | **Authorized distributor allowlist** | 🚧 Not done | Every seller below MAP is flagged the same way; there's no per-seller "this one is an authorized reseller" exemption. The promo-window system is today's mechanism for sanctioned exceptions (product/date-scoped, not seller-identity-scoped). |
 | **Deployment** | 🚧 Not done | Runs locally via Docker Compose. No hosting/CI pipeline yet. |
 | **Billing** | 🚧 Not done | Pricing tiers exist as a concept (Starter/Growth/Enterprise) but there's no Stripe/payment integration. |
@@ -156,8 +156,8 @@ npx next build     # production build
 | Role | Scope | What they can do |
 |---|---|---|
 | **superadmin** | Platform-wide, not tied to any brand | Review/approve/reject/request-info on new brand registrations. Nothing else — no brand dashboard, no violations, since there's no brand to scope those to. |
-| **admin** | One brand | Everything an analyst can (below), plus: complete brand onboarding, create team members, manage invites, create promo windows, generate enforcement letters. |
-| **analyst** | One brand | View violations, seller clusters, reports, crawl history. Cannot create promo windows (would let anyone quietly suppress violation detection with no sign-off) or generate enforcement letters (an external-facing action taken in the brand's name) — both require admin. |
+| **admin** | One brand | Everything an analyst can (below), plus: complete brand onboarding, add/edit products, create team members, manage invites, create promo windows, generate enforcement letters. |
+| **analyst** | One brand | View violations, seller clusters, reports, crawl history, and the product catalog (read-only). Cannot add/edit products, create promo windows (would let anyone quietly suppress violation detection with no sign-off), or generate enforcement letters (an external-facing action taken in the brand's name) — all three require admin. |
 
 New team members join a brand via admin-issued, hashed, expiring invite codes (`/join?code=...`), not open self-registration.
 

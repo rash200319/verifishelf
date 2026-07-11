@@ -10,6 +10,7 @@ from app.api.routes.crawl import router as crawl_router
 from app.api.routes.enforcement import router as enforcement_router
 from app.api.routes.health import router as health_router
 from app.api.routes.brands import router as brands_router
+from app.api.routes.products import router as products_router
 from app.api.routes.promos import router as promos_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.sellers import router as sellers_router
@@ -67,6 +68,7 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(brands_router)
+app.include_router(products_router)
 app.include_router(promos_router)
 app.include_router(reports_router)
 app.include_router(crawl_router)

@@ -210,6 +210,27 @@ Passwords are bcrypt-hashed (`app/core/auth.py::hash_password`/`verify_password`
 
 ---
 
+### Products (auth required)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/products` | any brand user | List products for the logged-in brand |
+| `POST` | `/products` | **admin only** | Add a new product (name, optional description, MAP price) |
+| `PUT` | `/products/{id}` | **admin only** | Edit an existing product |
+
+Add/edit is admin-only for the same reason promo creation is: it changes what the whole brand monitors, so an analyst shouldn't be able to do it unchecked. Adding a product here *is* what makes it a real crawl target — there's no separate "activate for crawling" step.
+
+**Create/update body (same shape for both):**
+```json
+{
+  "name": "Philips Air Fryer",
+  "description": "Optional internal notes",
+  "map_price": 32000.00
+}
+```
+
+---
+
 ### Promo Calendar
 
 | Method | Path | Auth | Description |
@@ -298,7 +319,7 @@ On-demand generation isn't the only way a report gets created: Celery Beat's `ge
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/violations/` | List violations for brand — severity, status, real classifier confidence, seller + product names |
+| `GET` | `/violations` | List violations for brand (300 most recent, newest first) — severity, status, real classifier confidence, seller + product names |
 
 ---
 
@@ -493,10 +514,11 @@ backend/
 │   │   ├── auth.py                # login, register, join-with-invite, registration-status
 │   │   ├── admin.py               # Superadmin (torchproxy/*) + brand-admin routes
 │   │   ├── brands.py              # Invite create/list
+│   │   ├── products.py            # Product catalog (add/edit is admin-only)
 │   │   ├── promos.py              # Promo calendar (create is admin-only)
 │   │   ├── reports.py             # Weekly reports + PDF export
 │   │   ├── crawl.py               # Crawl jobs, schedule, proxy health, marketplace preview
-│   │   ├── violations.py          # GET /violations/
+│   │   ├── violations.py          # GET /violations
 │   │   ├── sellers.py             # GET /sellers/clusters
 │   │   └── enforcement.py         # Letter generation (admin-only) + fetch
 │   ├── services/
