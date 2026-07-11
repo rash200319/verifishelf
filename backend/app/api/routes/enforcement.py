@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 
 from app.core.auth import require_auth, require_brand_admin
 from app.schemas.violations import EnforcementGenerateRequest, EnforcementLetterResponse
@@ -57,6 +58,22 @@ async def get_enforcement_letter(violation_id: int, current_user: dict = Depends
         raise HTTPException(status_code=404, detail="Enforcement letter not found")
 
     return _format_letter(letter)
+
+
+@router.get("/violations/{violation_id}/pdf")
+async def download_enforcement_letter_pdf(violation_id: int, current_user: dict = Depends(require_auth)):
+    try:
+        pdf_bytes = await EnforcementService.get_pdf_for_violation(violation_id, current_user["brand_id"])
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="enforcement-letter-{violation_id}.pdf"'},
+    )
 
 
 @router.post("/violations/{violation_id}/send", response_model=EnforcementLetterResponse)

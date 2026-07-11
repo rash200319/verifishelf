@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ExternalLink, FileText, RefreshCw, Send, ShieldAlert, Sparkles, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, ExternalLink, FileText, RefreshCw, Send, ShieldAlert, Sparkles, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { TactileButton } from "@/components/ui/tactile-button";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, getApiBaseUrl } from "@/lib/api";
 import type { EnforcementLetterRecord, SessionData, ViolationRecord } from "@/lib/backend-types";
 import { loadSession } from "@/lib/session";
 import { formatDateTime } from "@/lib/format";
@@ -50,6 +50,7 @@ export default function ViolationsPage() {
   const [letterError, setLetterError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [markSentLoading, setMarkSentLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
@@ -149,6 +150,34 @@ export default function ViolationsPage() {
       setLetterError(requestError instanceof Error ? requestError.message : "Unable to mark letter as sent");
     } finally {
       setMarkSentLoading(false);
+    }
+  };
+
+  const downloadLetterPdf = async (violationId: number) => {
+    if (!session) return;
+    setPdfLoading(true);
+    setLetterError("");
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/enforcement/violations/${violationId}/pdf`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(`Unable to download PDF (status ${response.status})`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `enforcement-letter-${violationId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (requestError) {
+      setLetterError(requestError instanceof Error ? requestError.message : "Unable to download PDF");
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -335,6 +364,13 @@ export default function ViolationsPage() {
                       onClick={() => void openLetter(activeViolationId, { forceRegenerate: true })}
                     >
                       <Sparkles className="mr-2 h-4 w-4" /> Regenerate
+                    </TactileButton>
+                    <TactileButton
+                      variant="secondary"
+                      disabled={pdfLoading}
+                      onClick={() => void downloadLetterPdf(activeViolationId)}
+                    >
+                      <Download className="mr-2 h-4 w-4" /> {pdfLoading ? "Preparing PDF..." : "Download PDF"}
                     </TactileButton>
                     {letter.status === "sent" ? (
                       <TactileButton variant="secondary" disabled>
