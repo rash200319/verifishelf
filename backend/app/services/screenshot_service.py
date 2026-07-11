@@ -21,6 +21,7 @@ import asyncio
 import base64
 import logging
 
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
 from app.core.proxy import ProxyConfigError, get_proxy_config, record_proxy_result
@@ -28,49 +29,48 @@ from app.core.proxy import ProxyConfigError, get_proxy_config, record_proxy_resu
 logger = logging.getLogger(__name__)
 
 NAVIGATION_TIMEOUT_MS = 15_000
-RENDER_SETTLE_MS = 9_000
 SCREENSHOT_TIMEOUT_S = 10.0
 VIEWPORT = {"width": 1280, "height": 900}
 
-# Minimum rendered body text length to consider a capture "real". The
-# blank-hydration-stall page (see comment below) reliably renders under 50
-# chars of visible text (just the static chrome around an empty product
-# slot); a genuine product page is consistently several hundred+.
-MIN_RENDERED_TEXT_CHARS = 200
-
-# Body text length alone isn't a reliable signal by itself -- the static
-# nav/header chrome (login, help center, category links, ...) alone runs
-# well past MIN_RENDERED_TEXT_CHARS even when the product content area
-# hasn't painted at all, an unstyled-nav-only render observed directly
-# during testing. The product title heading is the one thing that's both
-# always present on a real render and never present on a stalled one, so
-# require it too.
-MIN_TITLE_TEXT_CHARS = 8
-CONTENT_CHECK_TIMEOUT_S = 5.0
+# The readiness check below requires a non-trivial product-title heading,
+# not just aggregate body text length -- the static nav/header chrome
+# (login, help center, category links, ...) alone can run past a few
+# hundred characters even when the product content area hasn't painted at
+# all (an unstyled-nav-only render observed directly during testing). The
+# title heading is present on every real render and never on a stalled one.
+#
+# Actively polls (rather than a fixed sleep) for the product title AND the
+# advertised price, since a fixed settle window turned out to be exactly
+# the wrong tool here: measured directly against the live site, the price
+# is rendered by a separate, slower fetch than the title/image and simply
+# wasn't in the DOM yet at a 9s fixed wait that "looked" long enough --
+# every capture before this was quietly missing the one number the letter
+# exists to prove. Polling resolves the instant it's actually ready instead
+# of either cutting off early or always paying a worst-case fixed wait.
+READINESS_TIMEOUT_MS = 15_000
 
 # Bounded, best-effort wait for the largest on-page image (the actual
 # product photo, not the page's decorative chrome) to finish loading after
-# the text-content check passes. RENDER_SETTLE_MS is usually enough on its
-# own, but under slower proxy latency the text can be present while the
-# hero image is still a few hundred ms from painting -- this closes that
-# gap without waiting on "load"/networkidle, which are known to hang (see
-# comment below). A miss here is non-fatal; the capture still proceeds.
-IMAGE_READY_TIMEOUT_S = 3.0
+# the title/price check passes. A miss here is non-fatal; the capture still
+# proceeds -- this closes the common case without waiting on "load"/
+# networkidle, which are known to hang (see comment below).
+IMAGE_READY_TIMEOUT_MS = 3_000
 
-# One retry on a blank capture, since this failure mode has been observed
-# to be intermittent for the *same* listing/proxy session rather than a
-# hard block -- see capture_listing_screenshot docstring.
+# One retry on a blank/stalled capture, since that failure mode has been
+# observed to be intermittent for the *same* listing/proxy session rather
+# than a hard block -- see capture_listing_screenshot docstring.
 MAX_ATTEMPTS = 2
 
-# Hard ceiling on the whole capture (all attempts combined). Two attempts'
-# individual timeouts can in principle add up past a minute, which is long
-# enough to trip whatever's sitting in front of this request (observed as
-# the frontend's proxy reporting a "socket hang up" and the user seeing a
-# bare Internal Server Error, even though the backend was still working and
-# the letter eventually saved). This makes the function always return
-# within a bounded time -- worst case, no screenshot -- instead of letting
-# an external layer kill the connection first.
-OVERALL_CAPTURE_TIMEOUT_S = 40.0
+# Hard ceiling on the whole capture (all attempts combined), regardless of
+# how the individual per-step timeouts above add up. This is what actually
+# keeps the request bounded -- observed directly as the frontend's proxy
+# reporting a "socket hang up" and the user seeing a bare Internal Server
+# Error on a slow capture, even though the backend was still working and
+# the letter eventually saved. Sized to comfortably fit one full realistic
+# attempt (worst case: 15s nav + 15s readiness poll + 3s image + 10s
+# screenshot = 43s) rather than two, since getting the price reliably once
+# matters more than a second attempt at a lower bar.
+OVERALL_CAPTURE_TIMEOUT_S = 50.0
 
 
 async def _capture_once(browser, listing_url: str) -> bytes | None:
@@ -99,42 +99,26 @@ async def _capture_once(browser, listing_url: str) -> bytes | None:
         # pages through this proxy within any reasonable budget
         # (observed hanging past 45s on some third-party resource
         # that never finishes). "commit" (server responded, started
-        # receiving the document) plus a short settle delay for
-        # visible content to paint is a deliberate trade-off: this
-        # is evidence of what a shopper sees, not a pixel-perfect
-        # final render.
+        # receiving the document) plus actively polling for the
+        # specific content that matters (below) is a deliberate
+        # trade-off: this is evidence of what a shopper sees, not a
+        # pixel-perfect final render.
         await page.goto(listing_url, timeout=NAVIGATION_TIMEOUT_MS, wait_until="commit")
-        await page.wait_for_timeout(RENDER_SETTLE_MS)
 
-        # Unlike goto/screenshot above, evaluate() has no built-in timeout --
-        # if the page/renderer wedges after a proxy hiccup this would
-        # otherwise hang the request indefinitely instead of failing
-        # best-effort like everything else here.
         try:
-            readiness = await asyncio.wait_for(
-                page.evaluate(
-                    """() => {
-                        const h1 = document.querySelector('h1');
-                        return {
-                            bodyLen: document.body ? document.body.innerText.length : 0,
-                            titleLen: h1 ? h1.innerText.trim().length : 0,
-                        };
-                    }"""
-                ),
-                timeout=CONTENT_CHECK_TIMEOUT_S,
+            await page.wait_for_function(
+                """() => {
+                    const h1 = document.querySelector('h1');
+                    if (!h1 || h1.innerText.trim().length < 8) return false;
+                    const bodyText = document.body ? document.body.innerText : '';
+                    return /Rs\\.?\\s?[\\d,]+|LKR\\s?[\\d,]+/.test(bodyText);
+                }""",
+                timeout=READINESS_TIMEOUT_MS,
             )
-        except asyncio.TimeoutError:
-            logger.info("Content-readiness check timed out; treating as a blank capture.")
-            return None
-
-        if readiness["bodyLen"] < MIN_RENDERED_TEXT_CHARS or readiness["titleLen"] < MIN_TITLE_TEXT_CHARS:
+        except PlaywrightTimeoutError:
             logger.info(
-                "Listing page not fully rendered (body=%d chars, title=%d chars; need >=%d/>=%d); "
-                "treating as a stalled/partial capture.",
-                readiness["bodyLen"],
-                readiness["titleLen"],
-                MIN_RENDERED_TEXT_CHARS,
-                MIN_TITLE_TEXT_CHARS,
+                "Title/price never rendered within %sms; treating as a stalled/blank capture.",
+                READINESS_TIMEOUT_MS,
             )
             return None
 
@@ -143,20 +127,18 @@ async def _capture_once(browser, listing_url: str) -> bytes | None:
         # is worth the extra wait, and even that isn't worth failing the
         # capture over.
         try:
-            await asyncio.wait_for(
-                page.wait_for_function(
-                    """() => {
-                        const imgs = Array.from(document.querySelectorAll('img'));
-                        if (!imgs.length) return true;
-                        const hero = imgs.reduce((a, b) =>
-                            (a.naturalWidth * a.naturalHeight) >= (b.naturalWidth * b.naturalHeight) ? a : b
-                        );
-                        return hero.naturalWidth > 0;
-                    }"""
-                ),
-                timeout=IMAGE_READY_TIMEOUT_S,
+            await page.wait_for_function(
+                """() => {
+                    const imgs = Array.from(document.querySelectorAll('img'));
+                    if (!imgs.length) return true;
+                    const hero = imgs.reduce((a, b) =>
+                        (a.naturalWidth * a.naturalHeight) >= (b.naturalWidth * b.naturalHeight) ? a : b
+                    );
+                    return hero.naturalWidth > 0;
+                }""",
+                timeout=IMAGE_READY_TIMEOUT_MS,
             )
-        except asyncio.TimeoutError:
+        except PlaywrightTimeoutError:
             logger.info("Hero image still loading after grace period; capturing anyway.")
 
         # page.screenshot() has its own internal "waiting for fonts
