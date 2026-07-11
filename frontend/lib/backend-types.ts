@@ -7,6 +7,9 @@ export interface SessionData {
   // Null for a superadmin -- not scoped to any brand.
   brand_id: number | null;
   brand_name: string | null;
+  // "approved" once the brand has completed onboarding; null for a
+  // superadmin (not scoped to any brand).
+  brand_status: string | null;
   role: AuthRole | string;
   email?: string;
 }
