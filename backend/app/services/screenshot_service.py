@@ -27,7 +27,7 @@ from app.core.proxy import ProxyConfigError, get_proxy_config, record_proxy_resu
 
 logger = logging.getLogger(__name__)
 
-NAVIGATION_TIMEOUT_MS = 20_000
+NAVIGATION_TIMEOUT_MS = 15_000
 RENDER_SETTLE_MS = 9_000
 SCREENSHOT_TIMEOUT_S = 10.0
 VIEWPORT = {"width": 1280, "height": 900}
@@ -37,12 +37,40 @@ VIEWPORT = {"width": 1280, "height": 900}
 # chars of visible text (just the static chrome around an empty product
 # slot); a genuine product page is consistently several hundred+.
 MIN_RENDERED_TEXT_CHARS = 200
+
+# Body text length alone isn't a reliable signal by itself -- the static
+# nav/header chrome (login, help center, category links, ...) alone runs
+# well past MIN_RENDERED_TEXT_CHARS even when the product content area
+# hasn't painted at all, an unstyled-nav-only render observed directly
+# during testing. The product title heading is the one thing that's both
+# always present on a real render and never present on a stalled one, so
+# require it too.
+MIN_TITLE_TEXT_CHARS = 8
 CONTENT_CHECK_TIMEOUT_S = 5.0
+
+# Bounded, best-effort wait for the largest on-page image (the actual
+# product photo, not the page's decorative chrome) to finish loading after
+# the text-content check passes. RENDER_SETTLE_MS is usually enough on its
+# own, but under slower proxy latency the text can be present while the
+# hero image is still a few hundred ms from painting -- this closes that
+# gap without waiting on "load"/networkidle, which are known to hang (see
+# comment below). A miss here is non-fatal; the capture still proceeds.
+IMAGE_READY_TIMEOUT_S = 3.0
 
 # One retry on a blank capture, since this failure mode has been observed
 # to be intermittent for the *same* listing/proxy session rather than a
 # hard block -- see capture_listing_screenshot docstring.
 MAX_ATTEMPTS = 2
+
+# Hard ceiling on the whole capture (all attempts combined). Two attempts'
+# individual timeouts can in principle add up past a minute, which is long
+# enough to trip whatever's sitting in front of this request (observed as
+# the frontend's proxy reporting a "socket hang up" and the user seeing a
+# bare Internal Server Error, even though the backend was still working and
+# the letter eventually saved). This makes the function always return
+# within a bounded time -- worst case, no screenshot -- instead of letting
+# an external layer kill the connection first.
+OVERALL_CAPTURE_TIMEOUT_S = 40.0
 
 
 async def _capture_once(browser, listing_url: str) -> bytes | None:
@@ -83,22 +111,53 @@ async def _capture_once(browser, listing_url: str) -> bytes | None:
         # otherwise hang the request indefinitely instead of failing
         # best-effort like everything else here.
         try:
-            rendered_text_length = await asyncio.wait_for(
-                page.evaluate("document.body ? document.body.innerText.length : 0"),
+            readiness = await asyncio.wait_for(
+                page.evaluate(
+                    """() => {
+                        const h1 = document.querySelector('h1');
+                        return {
+                            bodyLen: document.body ? document.body.innerText.length : 0,
+                            titleLen: h1 ? h1.innerText.trim().length : 0,
+                        };
+                    }"""
+                ),
                 timeout=CONTENT_CHECK_TIMEOUT_S,
             )
         except asyncio.TimeoutError:
             logger.info("Content-readiness check timed out; treating as a blank capture.")
             return None
 
-        if rendered_text_length < MIN_RENDERED_TEXT_CHARS:
+        if readiness["bodyLen"] < MIN_RENDERED_TEXT_CHARS or readiness["titleLen"] < MIN_TITLE_TEXT_CHARS:
             logger.info(
-                "Listing page rendered only %d chars of text (< %d threshold); "
-                "treating as a blank hydration-stall capture.",
-                rendered_text_length,
+                "Listing page not fully rendered (body=%d chars, title=%d chars; need >=%d/>=%d); "
+                "treating as a stalled/partial capture.",
+                readiness["bodyLen"],
+                readiness["titleLen"],
                 MIN_RENDERED_TEXT_CHARS,
+                MIN_TITLE_TEXT_CHARS,
             )
             return None
+
+        # Best-effort only -- a slow decorative image (footer badges, ad
+        # slot) timing out here is fine and expected; only the hero image
+        # is worth the extra wait, and even that isn't worth failing the
+        # capture over.
+        try:
+            await asyncio.wait_for(
+                page.wait_for_function(
+                    """() => {
+                        const imgs = Array.from(document.querySelectorAll('img'));
+                        if (!imgs.length) return true;
+                        const hero = imgs.reduce((a, b) =>
+                            (a.naturalWidth * a.naturalHeight) >= (b.naturalWidth * b.naturalHeight) ? a : b
+                        );
+                        return hero.naturalWidth > 0;
+                    }"""
+                ),
+                timeout=IMAGE_READY_TIMEOUT_S,
+            )
+        except asyncio.TimeoutError:
+            logger.info("Hero image still loading after grace period; capturing anyway.")
 
         # page.screenshot() has its own internal "waiting for fonts
         # to load" stabilization step that also hangs indefinitely
@@ -140,8 +199,7 @@ async def capture_listing_screenshot(
     proxy_server = f"http://{proxy_config['host']}:{proxy_config['port']}"
     username, _, password = proxy_config.get("auth", "").partition(":")
 
-    screenshot_bytes: bytes | None = None
-    try:
+    async def _run_attempts() -> bytes | None:
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=True,
@@ -150,14 +208,23 @@ async def capture_listing_screenshot(
             )
             try:
                 for attempt in range(1, MAX_ATTEMPTS + 1):
-                    screenshot_bytes = await _capture_once(browser, listing_url)
-                    if screenshot_bytes is not None:
-                        break
+                    result = await _capture_once(browser, listing_url)
+                    if result is not None:
+                        return result
                     logger.info(
                         "Blank capture attempt %d/%d for %s", attempt, MAX_ATTEMPTS, listing_url
                     )
             finally:
                 await browser.close()
+        return None
+
+    screenshot_bytes: bytes | None = None
+    try:
+        screenshot_bytes = await asyncio.wait_for(_run_attempts(), timeout=OVERALL_CAPTURE_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        logger.info("Screenshot capture exceeded the %ss overall budget for %s", OVERALL_CAPTURE_TIMEOUT_S, listing_url)
+        record_proxy_result(proxy_config, success=False)
+        return None
     except Exception:
         logger.exception("Screenshot capture failed for %s", listing_url)
         record_proxy_result(proxy_config, success=False)
