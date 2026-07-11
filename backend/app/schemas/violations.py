@@ -27,6 +27,8 @@ class ViolationResponse(BaseModel):
     status: str
     severity: str | None = None
     detected_at: datetime
+    last_detected_at: datetime
+    reopened_count: int = 0
     listing: ListingInfo | None = None
 
 

@@ -1,5 +1,6 @@
 from app.repositories.enforcement_letter_repository import EnforcementLetterRepository
 from app.services import llm_client
+from app.services.pdf_render import render_enforcement_letter_pdf
 from app.services.screenshot_service import capture_listing_screenshot
 
 
@@ -130,3 +131,15 @@ class EnforcementService:
             raise ValueError(f"No enforcement letter has been generated yet for violation {violation_id}")
 
         return await EnforcementLetterRepository.mark_sent(letter["id"])
+
+    @classmethod
+    async def get_pdf_for_violation(cls, violation_id: int, brand_id: int) -> bytes:
+        context = await EnforcementLetterRepository.get_violation_context(violation_id, brand_id)
+        if context is None:
+            raise ValueError(f"Violation {violation_id} not found for brand {brand_id}")
+
+        letter = await EnforcementLetterRepository.get_latest_for_violation(violation_id)
+        if letter is None:
+            raise ValueError(f"No enforcement letter has been generated yet for violation {violation_id}")
+
+        return render_enforcement_letter_pdf(context, letter)

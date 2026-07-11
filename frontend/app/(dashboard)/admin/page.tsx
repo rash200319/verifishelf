@@ -43,6 +43,9 @@ export default function AdminPage() {
   // only endpoint with a normal brand token and seeing if it failed, which
   // never actually worked since that endpoint never accepted brand tokens).
   const isTorchproxyAdmin = session?.role === "superadmin";
+  // Once a brand is approved, the plan-tier form is really "change your
+  // plan" rather than "finish onboarding" -- the brand already onboarded.
+  const isBrandOnboarded = session?.brand_status === "approved";
 
   const fetchPendingBrands = useCallback(async () => {
     if (!session) return;
@@ -206,12 +209,18 @@ export default function AdminPage() {
           {isTorchproxyAdmin ? "TorchProxy console" : "Brand admin console"}
         </p>
         <h2 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
-          {isTorchproxyAdmin ? "Review and approve brand registrations." : "Onboard your brand to VerifyShelf."}
+          {isTorchproxyAdmin
+            ? "Review and approve brand registrations."
+            : isBrandOnboarded
+              ? "Manage your brand."
+              : "Onboard your brand to VerifyShelf."}
         </h2>
         <p className="max-w-2xl text-base leading-6 text-[var(--foreground-muted)]">
           {isTorchproxyAdmin
             ? "Review pending brand applications and approve them for platform access."
-            : "Complete your brand onboarding to start monitoring MAP compliance across marketplaces."
+            : isBrandOnboarded
+              ? "Update your plan tier or manage your team below."
+              : "Complete your brand onboarding to start monitoring MAP compliance across marketplaces."
           }
         </p>
       </div>
@@ -219,7 +228,13 @@ export default function AdminPage() {
       <div className="grid gap-4 md:grid-cols-3">
         {[
           { icon: ShieldCheck, title: "Admin token", detail: `Signed in as ${currentSession.email ?? currentSession.brand_name}` },
-          ...(isTorchproxyAdmin ? [{ icon: Building2, title: "Brand approvals", detail: "Review and approve pending brand registrations." }] : [{ icon: Building2, title: "Brand onboarding", detail: "Configure your brand and select your plan." }]),
+          ...(isTorchproxyAdmin
+            ? [{ icon: Building2, title: "Brand approvals", detail: "Review and approve pending brand registrations." }]
+            : [
+                isBrandOnboarded
+                  ? { icon: Building2, title: "Plan & billing", detail: "Update your plan tier at any time." }
+                  : { icon: Building2, title: "Brand onboarding", detail: "Configure your brand and select your plan." },
+              ]),
           ...(isTorchproxyAdmin ? [] : [{ icon: UserPlus, title: "Team management", detail: "Add team members to your brand workspace." }]),
         ].map((item) => (
           <Card key={item.title}>
@@ -291,8 +306,12 @@ export default function AdminPage() {
               <PlusCircle className="h-5 w-5 text-[var(--accent)]" strokeWidth={1.8} />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">Brand onboarding</p>
-              <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-[var(--foreground)]">Complete your brand setup.</h3>
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">
+                {isBrandOnboarded ? "Plan & billing" : "Brand onboarding"}
+              </p>
+              <h3 className="mt-0.5 text-lg font-semibold tracking-tight text-[var(--foreground)]">
+                {isBrandOnboarded ? "Update your plan." : "Complete your brand setup."}
+              </h3>
             </div>
           </div>
 
@@ -319,7 +338,7 @@ export default function AdminPage() {
               </Select>
             </label>
             <TactileButton type="submit" variant="primary" className="w-full justify-center" disabled={brandSubmitting}>
-              {brandSubmitting ? "Onboarding brand..." : "Complete onboarding"}
+              {brandSubmitting ? "Saving..." : isBrandOnboarded ? "Update plan" : "Complete onboarding"}
             </TactileButton>
           </form>
 
@@ -327,7 +346,7 @@ export default function AdminPage() {
 
           {brandResult ? (
             <div className="mt-4 rounded-[var(--radius-md)] bg-[var(--status-success-bg)] p-4 text-sm text-[var(--status-success-text)]">
-              <p className="font-semibold">Brand onboarding complete!</p>
+              <p className="font-semibold">{isBrandOnboarded ? "Plan updated!" : "Brand onboarding complete!"}</p>
               <p className="mt-2">Brand: {brandResult.name}</p>
               <p>Plan: {brandResult.plan}</p>
               <p>Torch sub-account: {brandResult.torch_sub_id}</p>

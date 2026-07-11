@@ -319,7 +319,9 @@ On-demand generation isn't the only way a report gets created: Celery Beat's `ge
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/violations` | List violations for brand (300 most recent, newest first) — severity, status, real classifier confidence, seller + product names |
+| `GET` | `/violations` | List violations for brand (300 most recent, sorted by `last_detected_at` descending) — severity, status, real classifier confidence, seller + product names |
+
+`detected_at` is the original first-detection time and never changes; `last_detected_at` updates on creation and on every reopen, which is what the list sorts by so a reopened long-running issue surfaces as recent. `reopened_count` is how many times this row has cycled `resolved` → `open` again (see `ViolationService` below) — a nonzero value means an ongoing issue, not `reopened_count` separate incidents.
 
 ---
 
@@ -337,9 +339,10 @@ On-demand generation isn't the only way a report gets created: Celery Beat's `ge
 |--------|------|------|-------------|
 | `POST` | `/enforcement/violations/{id}` | **admin only** | Generate an enforcement letter (Claude → Groq → template fallback) from violation context, plus a best-effort real headless-browser (Playwright) screenshot of the listing |
 | `GET` | `/enforcement/violations/{id}` | any brand user | Fetch the latest enforcement letter for a violation |
+| `GET` | `/enforcement/violations/{id}/pdf` | any brand user | Download the letter (+ evidence screenshot if present) as a PDF (`app/services/pdf_render.py::render_enforcement_letter_pdf`) — the artifact a brand admin actually sends to the reseller, since there's still no automated delivery channel |
 | `POST` | `/enforcement/violations/{id}/send` | **admin only** | Mark the latest letter `sent` (records `sent_at`) — there's no real seller contact address to email automatically, so this is the brand admin's own record of having actioned it elsewhere |
 
-Letter generation is admin-only: it's an external-facing action taken in the brand's name against a third party, not something an analyst should be able to initiate unilaterally. The response's `generated_by` field is always the real provider that produced the text (`"claude"` / `"groq"` / `"template"`); `screenshot_base64` is `null` if capture failed or the target's proxy/country wasn't configured; `status` is `"draft"` until explicitly marked sent.
+Letter generation is admin-only: it's an external-facing action taken in the brand's name against a third party, not something an analyst should be able to initiate unilaterally. The response's `generated_by` field is always the real provider that produced the text (`"claude"` / `"groq"` / `"template"`); `screenshot_base64` is `null` if capture failed, the page rendered blank (see `app/services/screenshot_service.py` — verifies rendered content before accepting a capture, retries once), or the target's proxy/country wasn't configured; `status` is `"draft"` until explicitly marked sent.
 
 ---
 
@@ -354,7 +357,7 @@ Letter generation is admin-only: it's an external-facing action taken in the bra
    - Upsert `listings` row (update if exists)
    - Append `price_snapshots` row
    - Classifier scores the listing, seller fingerprinting resolves/links the seller
-   - `ViolationService.evaluate_listing_price()`: compare vs MAP, check promo override, create/resolve violation
+   - `ViolationService.evaluate_listing_price()`: compare vs MAP, check promo override, create/resolve violation. Resolving requires 2 consecutive compliant crawls (`consecutive_compliant_checks`), not one, to avoid price-jitter-driven resolve/reopen churn. A violation resolved within the last 14 days that drops below MAP again reopens the same row (`reopened_count += 1`) instead of inserting a new one.
 6. Job marked `completed` or `failed` — any unhandled exception also forces `failed`
 
 ### Plan-tier intervals
@@ -457,7 +460,7 @@ Seed data: `backend/database/seed_daraz_mvp.sql`
 | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model override |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5` | Claude model override |
 | `SLACK_WEBHOOK_URL` | — | Optional. If unset, the Slack alert channel is skipped |
-| `SENDGRID_API_KEY` / `SENDGRID_FROM_EMAIL` / `ALERT_EMAIL_TO` | — | Optional email alert channel via the SendGrid API. All three required together or the channel is skipped; `SENDGRID_FROM_EMAIL` must be a verified sender/domain in the SendGrid account or sends 403 |
+| `SENDGRID_API_KEY` / `SENDGRID_FROM_EMAIL` / `ALERT_EMAIL_TO` | — | Optional email alert channel via the SendGrid API. All three required together or the channel is skipped; `SENDGRID_FROM_EMAIL` must be a verified sender/domain in the SendGrid account or sends 403. On a brand-new SendGrid account, a 403 can persist even with a verified sender and an API key that has the `mail.send` scope — new accounts also carry a `sender_verification_eligible` scope gate and need a separate account-level activation step (check the dashboard for a "complete your account setup" prompt) before sends actually go through. |
 | `CRAWL_COUNTRY_CODE` | LK | Daraz country |
 | `CRAWL_DEMO_MODE` | true | Use shorter crawl intervals |
 | `CRAWL_SCHEDULER_TICK_SECONDS` | 30 | Beat dispatch frequency |
@@ -530,8 +533,10 @@ backend/
 │   │   ├── violation_service.py   # MAP check, promo override, real classifier inference
 │   │   ├── seller_fingerprint_service.py  # Embedding-based cluster matching
 │   │   ├── enforcement_service.py # Claude/Groq letter drafting + template fallback
+│   │   ├── screenshot_service.py  # Real Playwright/Chromium listing screenshot capture (content-verified, retried)
+│   │   ├── alert_service.py       # Slack webhook + SendGrid email violation alerts, best-effort
 │   │   ├── llm_client.py          # Claude -> Groq -> None provider chain
-│   │   └── pdf_render.py          # ReportLab weekly-report PDF rendering
+│   │   └── pdf_render.py          # ReportLab PDF rendering (weekly reports + enforcement letters)
 │   ├── ml/
 │   │   ├── features.py            # Feature engineering (title similarity, seller age, ...)
 │   │   ├── dataset.py             # Real + synthetic training data builder
@@ -551,7 +556,7 @@ backend/
 │       ├── crawl_schedule.py      # Plan-tier interval config
 │       ├── marketplaces.py        # Daraz LK/PK domain resolution + marketplace catalog
 │       └── proxy.py               # Health-aware proxy routing + overflow pool
-├── alembic/versions/               # Schema migrations 0001-0005
+├── alembic/versions/               # Schema migrations 0001-0009
 ├── database/
 │   ├── schema.sql
 │   ├── seed_daraz_mvp.sql
@@ -560,8 +565,9 @@ backend/
 │   ├── demo_flow.py                     # End-to-end integration demo script
 │   ├── smoke_test_daraz_pk_proxy.py     # Standalone real-proxy crawl verification
 │   ├── explore_daraz_network.py         # One-off network capture (finding the real ajax endpoint)
+│   ├── rescore_violations.py            # Batch re-score existing violations with the current classifier
 │   └── seed_demo_contrast_listings.py   # Seeds curated contrast violations for the live demo
-├── tests/                           # 44 unit tests
+├── tests/                           # 47 unit tests
 ├── readme.md                        # This file
 └── requirements.txt
 ```
