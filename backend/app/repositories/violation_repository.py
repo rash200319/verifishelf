@@ -55,14 +55,111 @@ class ViolationRepository:
         return await ViolationRepository.get_open_violation_for_listing(listing_id)
 
     @staticmethod
-    async def update_violation_status(violation_id: int, status: str):
+    async def get_recently_resolved_violation(listing_id: int, within_days: int):
+        """Most recently resolved violation for this listing if it resolved
+        within the last `within_days` days -- the candidate to reopen
+        instead of inserting an unrelated new row."""
+        if db.mysql_pool is None:
+            raise RuntimeError("MySQL pool is not initialized")
+        async with db.mysql_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(
+                    """
+                    SELECT * FROM violations
+                    WHERE listing_id = %s
+                      AND status = 'resolved'
+                      AND resolved_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+                    ORDER BY resolved_at DESC
+                    LIMIT 1
+                    """,
+                    (listing_id, within_days),
+                )
+                return await cur.fetchone()
+
+    @staticmethod
+    async def reopen_violation(
+        violation_id: int,
+        map_price: float,
+        advertised_price: float,
+        price_delta_pct: float | None,
+        classifier_confidence: float | None,
+        classifier_type: str | None,
+    ):
+        if db.mysql_pool is None:
+            raise RuntimeError("MySQL pool is not initialized")
+        async with db.mysql_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(
+                    """
+                    UPDATE violations
+                    SET status = 'open',
+                        resolved_at = NULL,
+                        last_detected_at = CURRENT_TIMESTAMP,
+                        reopened_count = reopened_count + 1,
+                        consecutive_compliant_checks = 0,
+                        map_price = %s,
+                        advertised_price = %s,
+                        price_delta_pct = %s,
+                        classifier_confidence = %s,
+                        classifier_type = %s
+                    WHERE id = %s
+                    """,
+                    (
+                        map_price,
+                        advertised_price,
+                        price_delta_pct,
+                        classifier_confidence,
+                        classifier_type,
+                        violation_id,
+                    ),
+                )
+                await cur.execute("SELECT * FROM violations WHERE id = %s", (violation_id,))
+                return await cur.fetchone()
+
+    @staticmethod
+    async def resolve_violation(violation_id: int):
         if db.mysql_pool is None:
             raise RuntimeError("MySQL pool is not initialized")
         async with db.mysql_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
-                    "UPDATE violations SET status = %s WHERE id = %s",
-                    (status, violation_id)
+                    """
+                    UPDATE violations
+                    SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                    """,
+                    (violation_id,),
+                )
+
+    @staticmethod
+    async def bump_compliant_streak(violation_id: int) -> int:
+        """Increment the consecutive-compliant-checks counter and return the
+        new value, so the caller can decide whether it's crossed the
+        resolve threshold yet."""
+        if db.mysql_pool is None:
+            raise RuntimeError("MySQL pool is not initialized")
+        async with db.mysql_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(
+                    "UPDATE violations SET consecutive_compliant_checks = consecutive_compliant_checks + 1 WHERE id = %s",
+                    (violation_id,),
+                )
+                await cur.execute(
+                    "SELECT consecutive_compliant_checks FROM violations WHERE id = %s",
+                    (violation_id,),
+                )
+                row = await cur.fetchone()
+                return int(row["consecutive_compliant_checks"]) if row else 0
+
+    @staticmethod
+    async def reset_compliant_streak(violation_id: int):
+        if db.mysql_pool is None:
+            raise RuntimeError("MySQL pool is not initialized")
+        async with db.mysql_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "UPDATE violations SET consecutive_compliant_checks = 0 WHERE id = %s AND consecutive_compliant_checks != 0",
+                    (violation_id,),
                 )
 
     @staticmethod
@@ -106,6 +203,8 @@ class ViolationRepository:
                         v.classifier_type,
                         v.status,
                         v.detected_at,
+                        v.last_detected_at,
+                        v.reopened_count,
                         l.id as listing_id_val,
                         l.product_id,
                         l.seller_id,
@@ -121,13 +220,13 @@ class ViolationRepository:
                     JOIN products p ON l.product_id = p.id
                     JOIN sellers s ON l.seller_id = s.id
                     WHERE p.brand_id = %s
-                    ORDER BY v.detected_at DESC
+                    ORDER BY v.last_detected_at DESC
                     LIMIT %s
                     """,
                     (brand_id, limit)
                 )
                 rows = await cur.fetchall()
-                
+
                 violations = []
                 for row in rows:
                     v_dict = {
@@ -140,6 +239,8 @@ class ViolationRepository:
                         "classifier_type": row["classifier_type"],
                         "status": row["status"],
                         "detected_at": row["detected_at"],
+                        "last_detected_at": row["last_detected_at"],
+                        "reopened_count": row["reopened_count"],
                         "listing": {
                             "id": row["listing_id_val"],
                             "product_id": row["product_id"],

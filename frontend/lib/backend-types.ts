@@ -146,6 +146,8 @@ export interface ViolationRecord {
   status: string;
   severity: string | null;
   detected_at: string;
+  last_detected_at: string;
+  reopened_count: number;
   listing: ViolationListingInfo | null;
 }
 

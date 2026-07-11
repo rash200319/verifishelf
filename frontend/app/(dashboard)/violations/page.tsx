@@ -258,8 +258,11 @@ export default function ViolationsPage() {
                   <div className="flex items-center gap-2">
                     <StatusBadge status={violation.severity ?? "n/a"} type={severityBadgeType(violation.severity)} />
                     <StatusBadge status={violation.status} />
+                    {violation.reopened_count > 0 ? (
+                      <StatusBadge status={`Reopened ${violation.reopened_count}x`} type="warning" />
+                    ) : null}
                   </div>
-                  <span className="text-xs font-medium text-[var(--foreground-muted)]">{formatDateTime(violation.detected_at)}</span>
+                  <span className="text-xs font-medium text-[var(--foreground-muted)]">{formatDateTime(violation.last_detected_at)}</span>
                 </div>
 
                 <div className="mt-3 flex items-start justify-between gap-4">

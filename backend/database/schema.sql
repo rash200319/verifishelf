@@ -246,6 +246,27 @@ CREATE TABLE violations (
 
     detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
+    -- Set when status transitions to 'resolved' -- lets a later crawl that
+    -- finds the same listing back below MAP within REOPEN_WINDOW_DAYS
+    -- (see violation_service.py) reopen this row instead of inserting an
+    -- unrelated new one.
+    resolved_at TIMESTAMP NULL,
+
+    -- Updated every time this listing is (re)flagged, unlike detected_at
+    -- which stays at first detection -- list views sort by this so a
+    -- reopened long-standing issue surfaces as recent.
+    last_detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- How many times this row has cycled resolved -> open again.
+    reopened_count INT NOT NULL DEFAULT 0,
+
+    -- Consecutive crawls observing advertised_price >= map_price while
+    -- open. Resolving requires this to reach the threshold in
+    -- violation_service.py rather than a single compliant reading, since
+    -- one noisy/rounding-off scrape shouldn't resolve-then-reopen a real
+    -- ongoing violation.
+    consecutive_compliant_checks INT NOT NULL DEFAULT 0,
+
     FOREIGN KEY (listing_id)
         REFERENCES listings(id)
         ON DELETE CASCADE

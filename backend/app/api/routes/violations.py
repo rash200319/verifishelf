@@ -24,6 +24,8 @@ def _format_violation(violation: dict) -> ViolationResponse:
         status=violation["status"],
         severity=severity,
         detected_at=violation["detected_at"],
+        last_detected_at=violation["last_detected_at"],
+        reopened_count=violation.get("reopened_count", 0),
         listing=violation.get("listing"),
     )
 
