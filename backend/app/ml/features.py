@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from app.ml.embeddings import cosine_similarity as _embedding_cosine_similarity
+from app.ml.embeddings import embed_text
 
 FEATURE_COLUMNS = [
     "price_delta_pct",
@@ -31,26 +31,30 @@ FEATURE_COLUMNS = [
 
 def title_similarity(listing_title: str, product_name: str) -> float:
     """
-    Cosine TF-IDF similarity between a scraped listing title and the
-    brand's official product name (the proposal's own
-    "listing_title_similarity (cosine TF-IDF distance vs. official naming)"
-    feature). A low score means the listing is probably a mismatched/
-    unrelated product rather than a genuine same-product reseller.
+    Sentence-transformer semantic similarity between a scraped listing
+    title and the brand's official product name.
+
+    Previously this was plain TF-IDF cosine similarity over just the two
+    strings, which turned out not to work: with only two short documents,
+    TF-IDF degenerates into raw shared-word overlap, so "iPhone 13
+    Transparent Shockproof Case" scored 0.35 against "iPhone 13" -- nearly
+    identical to a genuine "Apple iPhone 13 128GB Blue" listing at 0.38.
+    The word overlap on "iphone"/"13" swamped the fact that a case is a
+    completely different product. Measured on real crawled listings, the
+    same sentence-transformer already used for seller fingerprinting
+    (all-MiniLM-L6-v2) separates these cleanly: accessories (cases, screen
+    protectors, chargers) cluster around 0.42-0.45, genuine matches around
+    0.60-0.61, unrelated products well below both. See dataset.py for how
+    the synthetic training distribution was recalibrated to this scale.
     """
     listing_title = (listing_title or "").strip()
     product_name = (product_name or "").strip()
     if not listing_title or not product_name:
         return 0.0
 
-    try:
-        vectorizer = TfidfVectorizer()
-        matrix = vectorizer.fit_transform([listing_title, product_name])
-        score = cosine_similarity(matrix[0], matrix[1])[0][0]
-    except ValueError:
-        # e.g. both strings are pure stopwords/empty after tokenizing
-        return 0.0
-
-    return float(score)
+    listing_vector = embed_text(listing_title)
+    product_vector = embed_text(product_name)
+    return _embedding_cosine_similarity(listing_vector, product_vector)
 
 
 def seller_account_age_days(seller_created_at, reference_time=None) -> float:

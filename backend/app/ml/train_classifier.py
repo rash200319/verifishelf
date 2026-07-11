@@ -54,6 +54,24 @@ def _train_and_evaluate(dataset: dict) -> dict:
         X, y, sources, test_size=0.2, random_state=42, stratify=stratify
     )
 
+    # Real violation rows outnumber synthetic ones, but their label is a
+    # weak proxy: label=1 unless a human has marked the violation
+    # "dismissed", and nothing in this codebase ever sets that status --
+    # there is no dismiss workflow anywhere. So every real row is
+    # positively labeled regardless of whether the listing actually matched
+    # the product, which (found empirically: retraining without this
+    # weighting pushed average confidence from ~0.6 to ~0.998, i.e. "always
+    # genuine") drowns out the synthetic data's deliberately-calibrated
+    # title-similarity signal once real rows outnumber synthetic ones.
+    # Down-weighting real rows keeps their genuinely useful signal (price
+    # delta / account age / history patterns) without letting an
+    # unreviewed-by-design label dominate the title-match boundary.
+    REAL_SAMPLE_WEIGHT = 0.35
+    SYNTHETIC_SAMPLE_WEIGHT = 1.0
+    sample_weight = np.array(
+        [SYNTHETIC_SAMPLE_WEIGHT if s == "synthetic_seed" else REAL_SAMPLE_WEIGHT for s in src_train]
+    )
+
     model = XGBClassifier(
         n_estimators=150,
         max_depth=3,
@@ -63,7 +81,7 @@ def _train_and_evaluate(dataset: dict) -> dict:
         eval_metric="logloss",
         random_state=42,
     )
-    model.fit(X_train, y_train)
+    model.fit(X_train, y_train, sample_weight=sample_weight)
 
     y_pred = model.predict(X_test)
     y_proba = model.predict_proba(X_test)[:, 1]

@@ -573,6 +573,7 @@ backend/
 For anyone extending this rather than reading it top to bottom:
 
 - **Crawl → classify → cluster**: `CrawlService.crawl_product()` calls the Daraz adapter, then the ML classifier (`app/ml/`), then `SellerFingerprintService`, then `ViolationService` — in that order, per listing.
+- **Retraining the classifier**: `python -m app.ml.train_classifier` pulls real violation history + synthetic bootstrap data, retrains, and overwrites `app/ml/artifacts/violation_classifier.json`. This only affects scoring for *future* violations — after a retrain that meaningfully changes scoring behavior, run `python scripts/rescore_violations.py` to re-score every existing violation's `classifier_confidence` with the new model (mirrors the training data builder's exact real-row methodology: chronological per-seller history, scored as of each violation's own `detected_at`, not "now").
 - **Violation → promo override**: `ViolationService` checks `PromoService.is_below_map_allowed()` before ever creating a violation row, so approved sale windows never get flagged.
 - **Violation → enforcement letter**: `POST /enforcement/violations/{id}` reads the violation + product + brand context and drafts a letter via `llm_client.generate_text()`.
 - **Frontend auth**: every dashboard page reads `Authorization: Bearer <token>` from `localStorage`; `POST /auth/login` is the only place a token is issued.
