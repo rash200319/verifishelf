@@ -1,12 +1,14 @@
 # VerifyShelf
 
+**ProxyMaze hackathon project** — built by **CODE_NEXUS** around Torch residential / ISP proxies.
+
 VerifyShelf is a brand-protection platform that watches third-party marketplace listings for **Minimum Advertised Price (MAP)** violations, scores them with a trained classifier, links repeat sellers across storefront aliases, and produces evidence-backed enforcement letters.
 
 Brands lose pricing control the moment a product leaves their own storefront. One reseller undercuts MAP, competing sellers match, and the floor collapses across a region before anyone on the brand side notices. VerifyShelf is the monitoring and action loop for that problem: crawl, classify, cluster, evidence, letter.
 
-The current live marketplace integration is **Daraz** (Pakistan via residential proxy; Sri Lanka domain is registered). Amazon, Flipkart, Lazada, Tokopedia, and Shopee are in the catalog and UI as phase-two adapters — they are not crawled yet.
+A datacenter request to Daraz returns an empty JavaScript shell. VerifyShelf routes crawls and Playwright evidence capture through **Torch geo-targeted residential/ISP sessions** (live target: Daraz Pakistan) so requests look like a local shopper. That proxy layer is the hackathon constraint and the reason the pipeline works.
 
-This repository is a working MVP: easy to run locally, honest about what is live vs. planned, and structured so the API, jobs, ML, and dashboard can be reviewed independently.
+The current live marketplace integration is **Daraz** (Pakistan via Torch proxy; Sri Lanka domain is registered). Amazon, Flipkart, Lazada, Tokopedia, and Shopee are in the catalog and UI as phase-two adapters — they are not crawled yet.
 
 ---
 
@@ -26,8 +28,7 @@ This repository is a working MVP: easy to run locally, honest about what is live
 - [Project structure](#project-structure)
 - [Current MVP boundaries](#current-mvp-boundaries)
 - [Future implementation](#future-implementation)
-- [Interview walkthrough](#interview-walkthrough)
-- [License](#license)
+- [Key code paths](#key-code-paths)
 
 ---
 
@@ -325,10 +326,8 @@ verifishelf/
 │   ├── app/                     # Next.js App Router screens
 │   ├── components/
 │   └── lib/                     # API client, session, types
-├── scripts/                     # Repo-level demo / intake utilities
-├── docker-compose.yml
-├── DEMO_SCRIPT.md
-└── PITCH_SCRIPT.md
+├── scripts/                     # Repo-level utilities
+└── docker-compose.yml
 ```
 
 ---
@@ -423,26 +422,14 @@ The MVP uses **one Celery worker** and **brand-level** crawl orchestration. Prod
 
 ---
 
-## Interview walkthrough
+## Key code paths
 
-Guided product and architecture scripts:
+API contracts, crawl internals, and env-var detail: [backend/readme.md](backend/readme.md).
 
-- [DEMO_SCRIPT.md](DEMO_SCRIPT.md) — pre-flight checklist and live click path
-- [PITCH_SCRIPT.md](PITCH_SCRIPT.md) — 8-minute spoken pitch
-- [backend/readme.md](backend/readme.md) — API, schema, Celery, env vars
-
-Highest-signal code paths:
-
-1. `backend/app/api/routes/violations.py` — API boundary
-2. `backend/app/services/crawl_service.py` — crawl orchestration
-3. `backend/app/services/violation_service.py` — scoring and lifecycle
-4. `backend/app/adapters/listing_adapter.py` — live Daraz fetch + adapter factory
-5. `backend/app/core/proxy.py` — health-aware proxy selection
-6. `backend/app/ml/` — features, training, inference
+1. `backend/app/core/proxy.py` — Torch pool selection, cooldown, overflow
+2. `backend/app/adapters/listing_adapter.py` — live Daraz ajax fetch + adapter factory
+3. `backend/app/services/crawl_service.py` — crawl orchestration
+4. `backend/app/services/violation_service.py` — scoring and lifecycle
+5. `backend/app/ml/` — features, training, inference
+6. `backend/app/services/screenshot_service.py` — Playwright evidence through the same proxy path
 7. `frontend/app/(dashboard)/` — operator workflow
-
----
-
-## License
-
-This is a portfolio / interview project. Add a license before distributing it publicly.
