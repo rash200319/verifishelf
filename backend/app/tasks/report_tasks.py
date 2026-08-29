@@ -9,14 +9,14 @@ from app.services.weekly_report_service import WeeklyReportService
 logger = logging.getLogger(__name__)
 
 
-async def _ensure_mysql_pool():
-    if db.mysql_pool is not None:
+async def _ensure_mysql():
+    if db.engine is not None:
         await db.close_mysql()
     await db.init_mysql()
 
 
 async def _run_generate_all_weekly_reports():
-    await _ensure_mysql_pool()
+    await _ensure_mysql()
     try:
         brands = await BrandRepository.list_approved_brands()
         generated = []

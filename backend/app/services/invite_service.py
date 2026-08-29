@@ -50,37 +50,31 @@ class InviteService:
 
     @staticmethod
     async def join_with_invite(email: str, invite_code: str, full_name: str, password: str):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            await conn.begin()
-            try:
-                invite = await InviteRepository.get_invite_by_hash(_hash_invite_code(invite_code), conn=conn)
+        factory = db.require_session_factory()
+        async with factory() as session:
+            async with session.begin():
+                invite = await InviteRepository.get_invite_by_hash(
+                    _hash_invite_code(invite_code),
+                    session=session,
+                )
                 if invite is None:
-                    await conn.rollback()
                     return None
 
                 if invite["used_at"] is not None:
-                    await conn.rollback()
                     return None
 
                 if invite["expires_at"] is not None and invite["expires_at"] < datetime.utcnow():
-                    await conn.rollback()
                     return None
 
                 if invite["email"] and invite["email"].strip().lower() != email.strip().lower():
-                    await conn.rollback()
                     return None
 
-                existing_user = await UserRepository.get_user_by_email(email, conn=conn)
+                existing_user = await UserRepository.get_user_by_email(email, session=session)
                 if existing_user is not None:
-                    await conn.rollback()
                     return None
 
-                brand = await BrandRepository.get_brand_by_id(invite["brand_id"], conn=conn)
+                brand = await BrandRepository.get_brand_by_id(invite["brand_id"], session=session)
                 if brand is None:
-                    await conn.rollback()
                     return None
 
                 password_hash = hash_password(password)
@@ -93,16 +87,12 @@ class InviteService:
                     is_active=True,
                     is_brand_owner=False,
                     invite_accepted_at=datetime.utcnow(),
-                    conn=conn,
+                    session=session,
                 )
-                await InviteRepository.mark_invite_used(invite["id"], conn=conn)
-                await conn.commit()
+                await InviteRepository.mark_invite_used(invite["id"], session=session)
 
                 return {
                     "user": user,
                     "brand": brand,
                     "invite": invite,
                 }
-            except Exception:
-                await conn.rollback()
-                raise

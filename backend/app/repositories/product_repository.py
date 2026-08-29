@@ -1,122 +1,98 @@
-from aiomysql.cursors import DictCursor
+from __future__ import annotations
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import db
+from app.models import Brand, Product
 
 
 class ProductRepository:
-    @staticmethod
-    async def get_product_for_brand(product_id: int, brand_id: int):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    SELECT id, brand_id, name, description, map_price, created_at
-                    FROM products
-                    WHERE id = %s AND brand_id = %s
-                    LIMIT 1
-                    """,
-                    (product_id, brand_id),
-                )
-                return await cur.fetchone()
+    _FIELDS = ["id", "brand_id", "name", "description", "map_price", "created_at"]
 
     @staticmethod
-    async def list_products_for_brand(brand_id: int):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    SELECT id, brand_id, name, description, map_price, created_at
-                    FROM products
-                    WHERE brand_id = %s
-                    ORDER BY id
-                    """,
-                    (brand_id,),
-                )
-                return await cur.fetchall()
+    async def get_product_for_brand(
+        product_id: int,
+        brand_id: int,
+        session: AsyncSession | None = None,
+    ):
+        async with db.session_scope(session) as s:
+            stmt = select(Product).where(
+                Product.id == product_id,
+                Product.brand_id == brand_id,
+            )
+            row = (await s.execute(stmt)).scalar_one_or_none()
+            return db.model_to_dict(row, ProductRepository._FIELDS)
 
     @staticmethod
-    async def create_product(brand_id: int, name: str, description: str | None, map_price: float):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    INSERT INTO products (brand_id, name, description, map_price)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (brand_id, name, description, map_price),
-                )
-                product_id = cur.lastrowid
-
-                await cur.execute(
-                    """
-                    SELECT id, brand_id, name, description, map_price, created_at
-                    FROM products
-                    WHERE id = %s
-                    """,
-                    (product_id,),
-                )
-                return await cur.fetchone()
+    async def list_products_for_brand(brand_id: int, session: AsyncSession | None = None):
+        async with db.session_scope(session) as s:
+            stmt = (
+                select(Product)
+                .where(Product.brand_id == brand_id)
+                .order_by(Product.id)
+            )
+            rows = (await s.execute(stmt)).scalars().all()
+            return [db.model_to_dict(row, ProductRepository._FIELDS) for row in rows]
 
     @staticmethod
-    async def update_product(product_id: int, brand_id: int, name: str, description: str | None, map_price: float):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    UPDATE products
-                    SET name = %s, description = %s, map_price = %s
-                    WHERE id = %s AND brand_id = %s
-                    """,
-                    (name, description, map_price, product_id, brand_id),
-                )
-                if cur.rowcount == 0:
-                    # Either the product doesn't exist, or it belongs to a
-                    # different brand -- both cases are "not found" from this
-                    # brand's perspective, never leak cross-brand existence.
-                    existing = await ProductRepository.get_product_for_brand(product_id, brand_id)
-                    if existing is None:
-                        return None
-
-                await cur.execute(
-                    """
-                    SELECT id, brand_id, name, description, map_price, created_at
-                    FROM products
-                    WHERE id = %s AND brand_id = %s
-                    """,
-                    (product_id, brand_id),
-                )
-                return await cur.fetchone()
+    async def create_product(
+        brand_id: int,
+        name: str,
+        description: str | None,
+        map_price: float,
+        session: AsyncSession | None = None,
+    ):
+        async with db.session_scope(session) as s:
+            product = Product(
+                brand_id=brand_id,
+                name=name,
+                description=description,
+                map_price=map_price,
+            )
+            s.add(product)
+            await s.flush()
+            await s.refresh(product)
+            return db.model_to_dict(product, ProductRepository._FIELDS)
 
     @staticmethod
-    async def list_brand_product_targets():
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
+    async def update_product(
+        product_id: int,
+        brand_id: int,
+        name: str,
+        description: str | None,
+        map_price: float,
+        session: AsyncSession | None = None,
+    ):
+        async with db.session_scope(session) as s:
+            stmt = select(Product).where(
+                Product.id == product_id,
+                Product.brand_id == brand_id,
+            )
+            product = (await s.execute(stmt)).scalar_one_or_none()
+            if product is None:
+                return None
 
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    SELECT
-                        b.id AS brand_id,
-                        b.name AS brand_name,
-                        b.plan AS brand_plan,
-                        p.id AS product_id,
-                        p.name AS product_name
-                    FROM brands b
-                    INNER JOIN products p ON p.brand_id = b.id
-                    ORDER BY b.id, p.id
-                    """
+            product.name = name
+            product.description = description
+            product.map_price = map_price
+            await s.flush()
+            await s.refresh(product)
+            return db.model_to_dict(product, ProductRepository._FIELDS)
+
+    @staticmethod
+    async def list_brand_product_targets(session: AsyncSession | None = None):
+        async with db.session_scope(session) as s:
+            stmt = (
+                select(
+                    Brand.id.label("brand_id"),
+                    Brand.name.label("brand_name"),
+                    Brand.plan.label("brand_plan"),
+                    Product.id.label("product_id"),
+                    Product.name.label("product_name"),
                 )
-                return await cur.fetchall()
+                .join(Product, Product.brand_id == Brand.id)
+                .order_by(Brand.id, Product.id)
+            )
+            rows = (await s.execute(stmt)).mappings().all()
+            return [dict(row) for row in rows]

@@ -99,7 +99,7 @@ Plan tiers in the product (Starter / Growth / Enterprise) scale crawl frequency,
 | Area | Tools |
 | --- | --- |
 | Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS 4, TanStack Query |
-| API | FastAPI, Python 3.11, SQLAlchemy, Alembic, Pydantic |
+| API | FastAPI, Python 3.11, SQLAlchemy Async ORM/Core, Alembic, Pydantic |
 | Data and jobs | MySQL 8, Redis 7, Celery, Flower |
 | ML | XGBoost, scikit-learn, sentence-transformers (all-MiniLM-L6-v2), CPU PyTorch |
 | Evidence and output | Playwright / Chromium, ReportLab |

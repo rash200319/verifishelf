@@ -1,11 +1,26 @@
+from __future__ import annotations
+
 from datetime import date
 
-from aiomysql.cursors import DictCursor
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import db
+from app.models import PromoWindow
 
 
 class PromoRepository:
+    _FIELDS = [
+        "id",
+        "brand_id",
+        "product_id",
+        "marketplace_id",
+        "start_date",
+        "end_date",
+        "notes",
+        "created_at",
+    ]
+
     @staticmethod
     def _normalize_row(row: dict) -> dict:
         return {
@@ -27,64 +42,44 @@ class PromoRepository:
         start_date: date,
         end_date: date,
         notes: str | None,
+        session: AsyncSession | None = None,
     ):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    INSERT INTO promo_windows (
-                        brand_id, product_id, marketplace_id, start_date, end_date, notes
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    """,
-                    (brand_id, product_id, marketplace_id, start_date, end_date, notes),
-                )
-                promo_id = cur.lastrowid
-
-                await cur.execute(
-                    """
-                    SELECT id, brand_id, product_id, marketplace_id, start_date, end_date, notes, created_at
-                    FROM promo_windows
-                    WHERE id = %s
-                    """,
-                    (promo_id,),
-                )
-                return PromoRepository._normalize_row(await cur.fetchone())
+        async with db.session_scope(session) as s:
+            promo = PromoWindow(
+                brand_id=brand_id,
+                product_id=product_id,
+                marketplace_id=marketplace_id,
+                start_date=start_date,
+                end_date=end_date,
+                notes=notes,
+            )
+            s.add(promo)
+            await s.flush()
+            await s.refresh(promo)
+            return PromoRepository._normalize_row(db.model_to_dict(promo, PromoRepository._FIELDS))
 
     @staticmethod
     async def list_promos(
         brand_id: int,
         product_id: int | None = None,
         active_on: date | None = None,
+        session: AsyncSession | None = None,
     ):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        query = """
-            SELECT id, brand_id, product_id, marketplace_id, start_date, end_date, notes, created_at
-            FROM promo_windows
-            WHERE brand_id = %s
-        """
-        params: list = [brand_id]
-
-        if product_id is not None:
-            query += " AND product_id = %s"
-            params.append(product_id)
-
-        if active_on is not None:
-            query += " AND start_date <= %s AND end_date >= %s"
-            params.extend([active_on, active_on])
-
-        query += " ORDER BY start_date DESC, id DESC"
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(query, tuple(params))
-                rows = await cur.fetchall()
-                return [PromoRepository._normalize_row(row) for row in rows]
+        async with db.session_scope(session) as s:
+            stmt = select(PromoWindow).where(PromoWindow.brand_id == brand_id)
+            if product_id is not None:
+                stmt = stmt.where(PromoWindow.product_id == product_id)
+            if active_on is not None:
+                stmt = stmt.where(
+                    PromoWindow.start_date <= active_on,
+                    PromoWindow.end_date >= active_on,
+                )
+            stmt = stmt.order_by(PromoWindow.start_date.desc(), PromoWindow.id.desc())
+            rows = (await s.execute(stmt)).scalars().all()
+            return [
+                PromoRepository._normalize_row(db.model_to_dict(row, PromoRepository._FIELDS))
+                for row in rows
+            ]
 
     @staticmethod
     async def has_active_promo(
@@ -92,23 +87,22 @@ class PromoRepository:
         product_id: int,
         marketplace_id: int | None,
         check_date: date,
+        session: AsyncSession | None = None,
     ) -> bool:
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    """
-                    SELECT COUNT(*) AS promo_count
-                    FROM promo_windows
-                    WHERE brand_id = %s
-                      AND product_id = %s
-                      AND start_date <= %s
-                      AND end_date >= %s
-                      AND (marketplace_id IS NULL OR marketplace_id = %s)
-                    """,
-                    (brand_id, product_id, check_date, check_date, marketplace_id),
+        async with db.session_scope(session) as s:
+            stmt = (
+                select(func.count())
+                .select_from(PromoWindow)
+                .where(
+                    PromoWindow.brand_id == brand_id,
+                    PromoWindow.product_id == product_id,
+                    PromoWindow.start_date <= check_date,
+                    PromoWindow.end_date >= check_date,
+                    or_(
+                        PromoWindow.marketplace_id.is_(None),
+                        PromoWindow.marketplace_id == marketplace_id,
+                    ),
                 )
-                row = await cur.fetchone()
-                return int(row[0]) > 0
+            )
+            count = (await s.execute(stmt)).scalar_one()
+            return int(count) > 0

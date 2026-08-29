@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / ".env", override=True)
 
-import aiomysql  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 
 from app.core import db  # noqa: E402
 from app.ml import inference  # noqa: E402
@@ -41,9 +41,10 @@ from app.ml.features import build_feature_row  # noqa: E402
 async def main() -> None:
     await db.init_mysql()
     try:
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute(
+        factory = db.require_session_factory()
+        async with factory() as session:
+            result = await session.execute(
+                text(
                     """
                     SELECT
                         v.id AS violation_id,
@@ -60,7 +61,8 @@ async def main() -> None:
                     ORDER BY v.detected_at ASC
                     """
                 )
-                rows = await cur.fetchall()
+            )
+            rows = [dict(row) for row in result.mappings().all()]
 
         print(f"Rescoring {len(rows)} violations...")
 
@@ -68,36 +70,42 @@ async def main() -> None:
         updated = 0
         unchanged_no_model = 0
 
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cur:
-                for row in rows:
-                    seller_id = row["seller_id"]
-                    prior_count = seen_counts.get(seller_id, 0)
+        async with factory() as session:
+            for row in rows:
+                seller_id = row["seller_id"]
+                prior_count = seen_counts.get(seller_id, 0)
 
-                    features = build_feature_row(
-                        price_delta_pct=float(row["price_delta_pct"] or 0.0),
-                        listing_title=row["listing_title"],
-                        product_name=row["product_name"],
-                        seller_created_at=row["seller_created_at"],
-                        reference_time=row["detected_at"],
-                        seller_historical_violation_count=prior_count,
-                    )
-                    seen_counts[seller_id] = prior_count + 1
+                features = build_feature_row(
+                    price_delta_pct=float(row["price_delta_pct"] or 0.0),
+                    listing_title=row["listing_title"],
+                    product_name=row["product_name"],
+                    seller_created_at=row["seller_created_at"],
+                    reference_time=row["detected_at"],
+                    seller_historical_violation_count=prior_count,
+                )
+                seen_counts[seller_id] = prior_count + 1
 
-                    confidence = inference.predict_confidence(features)
-                    if confidence is None:
-                        unchanged_no_model += 1
-                        continue
+                confidence = inference.predict_confidence(features)
+                if confidence is None:
+                    unchanged_no_model += 1
+                    continue
 
-                    await cur.execute(
+                await session.execute(
+                    text(
                         """
                         UPDATE violations
-                        SET classifier_confidence = %s, classifier_type = %s
-                        WHERE id = %s
-                        """,
-                        (round(confidence, 2), "xgboost_v1", row["violation_id"]),
-                    )
-                    updated += 1
+                        SET classifier_confidence = :confidence, classifier_type = :classifier_type
+                        WHERE id = :violation_id
+                        """
+                    ),
+                    {
+                        "confidence": round(confidence, 2),
+                        "classifier_type": "xgboost_v1",
+                        "violation_id": row["violation_id"],
+                    },
+                )
+                updated += 1
+            await session.commit()
 
         print(f"Updated: {updated}")
         print(f"Skipped (model unavailable): {unchanged_no_model}")

@@ -63,6 +63,8 @@ async def shutdown():
         except asyncio.CancelledError:
             pass
 
+    await db.close_mysql()
+
 
 app.include_router(health_router)
 app.include_router(auth_router)

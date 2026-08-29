@@ -9,7 +9,6 @@ from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
-
 BASE_DIR = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = BASE_DIR.parent
 
@@ -34,7 +33,9 @@ def build_database_url() -> str:
 
 config.set_main_option("sqlalchemy.url", build_database_url().replace("%", "%%"))
 
-target_metadata = None
+from app.models import Base  # noqa: E402
+
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
@@ -44,6 +45,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
     )
 
     with context.begin_transaction():
@@ -58,7 +60,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

@@ -45,9 +45,11 @@ Covers the platform and infrastructure layer: FastAPI API, MySQL schema, auth, b
                                                 violations table
 ```
 
-**Layer pattern:** `Routes → Services → Repositories → MySQL`
+**Layer pattern:** `Routes → Services → Repositories → SQLAlchemy AsyncSession → MySQL`
 
 **Background jobs:** Celery worker + Beat + Redis broker. Flower dashboard on port `5555`.
+
+**ORM:** SQLAlchemy async models in `app/models/`; Alembic `target_metadata = Base.metadata`.
 
 **Scalable marketplace design:** `marketplaces` is the canonical catalog for all supported marketplaces, and `brand_marketplaces` maps each brand to the marketplaces it actively tracks with its own crawl cadence.
 

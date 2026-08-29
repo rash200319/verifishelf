@@ -31,8 +31,8 @@ from __future__ import annotations
 import math
 from datetime import datetime, timedelta
 
-import aiomysql
 import numpy as np
+from sqlalchemy import text
 
 from app.core import db
 from app.ml.features import FEATURE_COLUMNS, build_feature_row
@@ -40,12 +40,10 @@ from app.ml.features import FEATURE_COLUMNS, build_feature_row
 
 async def fetch_real_training_rows() -> list[dict]:
     """Pull this deployment's real violation history as labeled rows."""
-    if db.mysql_pool is None:
-        raise RuntimeError("MySQL pool is not initialized")
-
-    async with db.mysql_pool.acquire() as conn:
-        async with conn.cursor(aiomysql.DictCursor) as cur:
-            await cur.execute(
+    factory = db.require_session_factory()
+    async with factory() as session:
+        result = await session.execute(
+            text(
                 """
                 SELECT
                     v.id AS violation_id,
@@ -63,7 +61,8 @@ async def fetch_real_training_rows() -> list[dict]:
                 ORDER BY v.detected_at ASC
                 """
             )
-            rows = await cur.fetchall()
+        )
+        rows = [dict(row) for row in result.mappings().all()]
 
     seen_counts: dict[int, int] = {}
     dataset_rows: list[dict] = []

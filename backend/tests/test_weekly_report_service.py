@@ -17,6 +17,7 @@ class WeeklyReportServiceTestCase(unittest.IsolatedAsyncioTestCase):
                 "violations_detected": 1,
                 "violations_open": 1,
                 "active_promo_windows": 1,
+                "repeat_offenders": 0,
             },
             "products": [
                 {
@@ -28,6 +29,7 @@ class WeeklyReportServiceTestCase(unittest.IsolatedAsyncioTestCase):
                     "latest_price": 21058,
                 }
             ],
+            "top_offending_sellers": [],
         }
         stored_row = {
             "id": 3,

@@ -5,7 +5,6 @@ import uuid
 from app.core import db
 from app.core.auth import hash_password, verify_password
 from app.repositories.brand_repository import BrandRepository
-from app.repositories.invite_repository import InviteRepository
 from app.repositories.user_repository import UserRepository
 from app.services.brand_service import BrandService
 from app.services.invite_service import InviteService
@@ -31,17 +30,14 @@ class AuthService:
         current_marketplaces: list[str] | None = None,
         authorized_attestation: bool = False,
     ):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            await conn.begin()
-            try:
-                existing_user = await UserRepository.get_user_by_email(email, conn=conn)
+        factory = db.require_session_factory()
+        async with factory() as session:
+            async with session.begin():
+                existing_user = await UserRepository.get_user_by_email(email, session=session)
                 if existing_user is not None:
                     raise ValueError("Email already registered")
 
-                existing_brand = await BrandRepository.get_brand_by_name(brand_name, conn=conn)
+                existing_brand = await BrandRepository.get_brand_by_name(brand_name, session=session)
                 if existing_brand is not None:
                     raise ValueError("Brand name already exists")
 
@@ -61,7 +57,7 @@ class AuthService:
                     estimated_sku_range=estimated_sku_range,
                     current_marketplaces=",".join(current_marketplaces) if current_marketplaces else None,
                     authorized_attestation=authorized_attestation,
-                    conn=conn,
+                    session=session,
                 )
                 if brand is None:
                     raise RuntimeError("Failed to create brand")
@@ -74,19 +70,15 @@ class AuthService:
                     "admin",
                     is_active=False,
                     is_brand_owner=True,
-                    conn=conn,
+                    session=session,
                 )
                 if user is None:
                     raise RuntimeError("Failed to create user")
 
-                await conn.commit()
                 return {
                     "brand": brand,
                     "user": user,
                 }
-            except Exception:
-                await conn.rollback()
-                raise
 
     @staticmethod
     async def login(email: str, password: str):

@@ -1,9 +1,38 @@
-from aiomysql.cursors import DictCursor
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import db
+from app.models import Brand
 
 
 class BrandRepository:
+    _FIELDS = [
+        "id",
+        "name",
+        "plan",
+        "status",
+        "company_name",
+        "business_url",
+        "onboarding_notes",
+        "review_notes",
+        "reviewed_by",
+        "reviewed_at",
+        "torch_sub_id",
+        "registration_number",
+        "business_address",
+        "industry",
+        "contact_title",
+        "contact_phone",
+        "estimated_sku_range",
+        "current_marketplaces",
+        "authorized_attestation",
+        "created_at",
+    ]
+
     @staticmethod
     async def insert_brand(
         name: str,
@@ -22,212 +51,71 @@ class BrandRepository:
         estimated_sku_range: str | None = None,
         current_marketplaces: str | None = None,
         authorized_attestation: bool = False,
+        session: AsyncSession | None = None,
         conn=None,
     ):
-        if db.mysql_pool is None and conn is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        if conn is None:
-            async with db.mysql_pool.acquire() as pooled_conn:
-                return await BrandRepository.insert_brand(
-                    name,
-                    plan,
-                    torch_sub_id,
-                    company_name=company_name,
-                    business_url=business_url,
-                    onboarding_notes=onboarding_notes,
-                    status=status,
-                    registration_number=registration_number,
-                    business_address=business_address,
-                    industry=industry,
-                    contact_title=contact_title,
-                    contact_phone=contact_phone,
-                    estimated_sku_range=estimated_sku_range,
-                    current_marketplaces=current_marketplaces,
-                    authorized_attestation=authorized_attestation,
-                    conn=pooled_conn,
-                )
-
-        async with conn.cursor(DictCursor) as cur:
-            await cur.execute(
-                """
-                INSERT INTO brands (
-                    name,
-                    plan,
-                    status,
-                    company_name,
-                    business_url,
-                    onboarding_notes,
-                    torch_sub_id,
-                    registration_number,
-                    business_address,
-                    industry,
-                    contact_title,
-                    contact_phone,
-                    estimated_sku_range,
-                    current_marketplaces,
-                    authorized_attestation
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    name, plan, status, company_name, business_url, onboarding_notes, torch_sub_id,
-                    registration_number, business_address, industry, contact_title, contact_phone,
-                    estimated_sku_range, current_marketplaces, authorized_attestation,
-                ),
+        session = session if session is not None else conn
+        async with db.session_scope(session) as s:
+            brand = Brand(
+                name=name,
+                plan=plan,
+                status=status,
+                company_name=company_name,
+                business_url=business_url,
+                onboarding_notes=onboarding_notes,
+                torch_sub_id=torch_sub_id,
+                registration_number=registration_number,
+                business_address=business_address,
+                industry=industry,
+                contact_title=contact_title,
+                contact_phone=contact_phone,
+                estimated_sku_range=estimated_sku_range,
+                current_marketplaces=current_marketplaces,
+                authorized_attestation=authorized_attestation,
             )
-
-            brand_id = cur.lastrowid
-            # Must reuse the same connection/transaction here -- calling
-            # get_brand_by_id() without conn acquires a *different* pooled
-            # connection, which can't see this insert until the caller's
-            # transaction commits (e.g. register_brand_owner wraps this in
-            # an explicit conn.begin()/commit() and creates the user row
-            # afterward), so this would return None and the whole
-            # registration would fail with "Failed to create brand".
-            return await BrandRepository.get_brand_by_id(brand_id, conn=conn)
+            s.add(brand)
+            await s.flush()
+            await s.refresh(brand)
+            return db.model_to_dict(brand, BrandRepository._FIELDS)
 
     @staticmethod
-    async def get_brand_by_name(name: str, conn=None):
-        if db.mysql_pool is None and conn is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        if conn is None:
-            async with db.mysql_pool.acquire() as pooled_conn:
-                return await BrandRepository.get_brand_by_name(name, conn=pooled_conn)
-
-        async with conn.cursor(DictCursor) as cur:
-            await cur.execute(
-                """
-                SELECT
-                    id,
-                    name,
-                    plan,
-                    status,
-                    company_name,
-                    business_url,
-                    onboarding_notes,
-                    review_notes,
-                    reviewed_by,
-                    reviewed_at,
-                    torch_sub_id,
-                    registration_number,
-                    business_address,
-                    industry,
-                    contact_title,
-                    contact_phone,
-                    estimated_sku_range,
-                    current_marketplaces,
-                    authorized_attestation,
-                    created_at
-                FROM brands
-                WHERE name = %s
-                LIMIT 1
-                """,
-                (name,),
-            )
-            return await cur.fetchone()
+    async def get_brand_by_name(name: str, session: AsyncSession | None = None, conn=None):
+        session = session if session is not None else conn
+        async with db.session_scope(session) as s:
+            stmt = select(Brand).where(Brand.name == name).limit(1)
+            row = (await s.execute(stmt)).scalar_one_or_none()
+            return db.model_to_dict(row, BrandRepository._FIELDS)
 
     @staticmethod
-    async def get_brand_by_id(brand_id: int, conn=None):
-        if db.mysql_pool is None and conn is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        if conn is None:
-            async with db.mysql_pool.acquire() as pooled_conn:
-                return await BrandRepository.get_brand_by_id(brand_id, conn=pooled_conn)
-
-        async with conn.cursor(DictCursor) as cur:
-            await cur.execute(
-                """
-                SELECT
-                    id,
-                    name,
-                    plan,
-                    status,
-                    company_name,
-                    business_url,
-                    onboarding_notes,
-                    review_notes,
-                    reviewed_by,
-                    reviewed_at,
-                    torch_sub_id,
-                    registration_number,
-                    business_address,
-                    industry,
-                    contact_title,
-                    contact_phone,
-                    estimated_sku_range,
-                    current_marketplaces,
-                    authorized_attestation,
-                    created_at
-                FROM brands
-                WHERE id = %s
-                LIMIT 1
-                """,
-                (brand_id,),
-            )
-            return await cur.fetchone()
+    async def get_brand_by_id(brand_id: int, session: AsyncSession | None = None, conn=None):
+        session = session if session is not None else conn
+        async with db.session_scope(session) as s:
+            row = await s.get(Brand, brand_id)
+            return db.model_to_dict(row, BrandRepository._FIELDS)
 
     @staticmethod
-    async def list_approved_brands(conn=None):
-        if db.mysql_pool is None and conn is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        if conn is None:
-            async with db.mysql_pool.acquire() as pooled_conn:
-                return await BrandRepository.list_approved_brands(conn=pooled_conn)
-
-        async with conn.cursor(DictCursor) as cur:
-            await cur.execute(
-                """
-                SELECT id, name
-                FROM brands
-                WHERE status = 'approved'
-                ORDER BY id ASC
-                """
+    async def list_approved_brands(session: AsyncSession | None = None, conn=None):
+        session = session if session is not None else conn
+        async with db.session_scope(session) as s:
+            stmt = (
+                select(Brand.id, Brand.name)
+                .where(Brand.status == "approved")
+                .order_by(Brand.id.asc())
             )
-            return await cur.fetchall()
+            rows = (await s.execute(stmt)).mappings().all()
+            return [dict(row) for row in rows]
 
     @staticmethod
-    async def list_pending_brands(conn=None):
-        if db.mysql_pool is None and conn is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        if conn is None:
-            async with db.mysql_pool.acquire() as pooled_conn:
-                return await BrandRepository.list_pending_brands(conn=pooled_conn)
-
-        async with conn.cursor(DictCursor) as cur:
-            await cur.execute(
-                """
-                SELECT
-                    id,
-                    name,
-                    plan,
-                    status,
-                    company_name,
-                    business_url,
-                    onboarding_notes,
-                    review_notes,
-                    reviewed_by,
-                    reviewed_at,
-                    torch_sub_id,
-                    registration_number,
-                    business_address,
-                    industry,
-                    contact_title,
-                    contact_phone,
-                    estimated_sku_range,
-                    current_marketplaces,
-                    authorized_attestation,
-                    created_at
-                FROM brands
-                WHERE status = 'pending_review'
-                ORDER BY created_at ASC
-                """
+    async def list_pending_brands(session: AsyncSession | None = None, conn=None):
+        session = session if session is not None else conn
+        async with db.session_scope(session) as s:
+            stmt = (
+                select(Brand)
+                .where(Brand.status == "pending_review")
+                .order_by(Brand.created_at.asc())
             )
-            return await cur.fetchall()
+            rows = (await s.execute(stmt)).scalars().all()
+            return [db.model_to_dict(row, BrandRepository._FIELDS) for row in rows]
 
     @staticmethod
     async def update_brand_review(
@@ -236,62 +124,37 @@ class BrandRepository:
         status: str,
         reviewed_by: str | None = None,
         review_notes: str | None = None,
+        session: AsyncSession | None = None,
         conn=None,
     ):
-        if db.mysql_pool is None and conn is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        if conn is None:
-            async with db.mysql_pool.acquire() as pooled_conn:
-                return await BrandRepository.update_brand_review(
-                    brand_id,
-                    status=status,
-                    reviewed_by=reviewed_by,
-                    review_notes=review_notes,
-                    conn=pooled_conn,
-                )
-
-        async with conn.cursor(DictCursor) as cur:
-            await cur.execute(
-                """
-                UPDATE brands
-                SET status = %s,
-                    reviewed_by = %s,
-                    reviewed_at = CURRENT_TIMESTAMP,
-                    review_notes = %s
-                WHERE id = %s
-                """,
-                (status, reviewed_by, review_notes, brand_id),
-            )
-            return await BrandRepository.get_brand_by_id(brand_id, conn=conn)
+        session = session if session is not None else conn
+        async with db.session_scope(session) as s:
+            brand = await s.get(Brand, brand_id)
+            if brand is None:
+                return None
+            brand.status = status
+            brand.reviewed_by = reviewed_by
+            brand.reviewed_at = datetime.utcnow()
+            brand.review_notes = review_notes
+            await s.flush()
+            await s.refresh(brand)
+            return db.model_to_dict(brand, BrandRepository._FIELDS)
 
     @staticmethod
     async def update_brand_plan(
         brand_id: int,
         plan: str,
         torch_sub_id: str,
+        session: AsyncSession | None = None,
         conn=None,
     ):
-        if db.mysql_pool is None and conn is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        if conn is None:
-            async with db.mysql_pool.acquire() as pooled_conn:
-                return await BrandRepository.update_brand_plan(
-                    brand_id,
-                    plan,
-                    torch_sub_id,
-                    conn=pooled_conn,
-                )
-
-        async with conn.cursor(DictCursor) as cur:
-            await cur.execute(
-                """
-                UPDATE brands
-                SET plan = %s,
-                    torch_sub_id = %s
-                WHERE id = %s
-                """,
-                (plan, torch_sub_id, brand_id),
-            )
-            return await BrandRepository.get_brand_by_id(brand_id, conn=conn)
+        session = session if session is not None else conn
+        async with db.session_scope(session) as s:
+            brand = await s.get(Brand, brand_id)
+            if brand is None:
+                return None
+            brand.plan = plan
+            brand.torch_sub_id = torch_sub_id
+            await s.flush()
+            await s.refresh(brand)
+            return db.model_to_dict(brand, BrandRepository._FIELDS)

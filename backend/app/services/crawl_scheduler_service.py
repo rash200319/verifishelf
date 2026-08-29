@@ -2,10 +2,9 @@ from datetime import datetime
 
 from app.core.crawl_schedule import get_crawl_interval_for_plan, is_demo_mode
 from app.core.marketplaces import ACTIVE_COUNTRY_CODE
+from app.repositories.brand_marketplace_repository import BrandMarketplaceRepository
 from app.repositories.crawl_job_repository import CrawlJobRepository
 from app.repositories.product_repository import ProductRepository
-from app.core import db
-from aiomysql.cursors import DictCursor
 
 
 class CrawlSchedulerService:
@@ -46,33 +45,7 @@ class CrawlSchedulerService:
 
     @classmethod
     async def _load_enabled_brand_marketplaces(cls) -> list[dict]:
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    SELECT
-                        bm.id AS brand_marketplace_id,
-                        bm.brand_id,
-                        bm.marketplace_id,
-                        bm.enabled,
-                        bm.crawl_frequency_hrs,
-                        bm.country_code,
-                        bm.priority,
-                        b.name AS brand_name,
-                        b.plan AS brand_plan,
-                        m.name AS marketplace_name,
-                        m.country_code AS marketplace_country_code
-                    FROM brand_marketplaces bm
-                    INNER JOIN brands b ON b.id = bm.brand_id
-                    INNER JOIN marketplaces m ON m.id = bm.marketplace_id
-                    WHERE bm.enabled = TRUE AND b.status = 'approved'
-                    ORDER BY bm.brand_id, bm.priority ASC, bm.marketplace_id ASC
-                    """
-                )
-                return await cur.fetchall()
+        return await BrandMarketplaceRepository.list_enabled_approved()
 
     @classmethod
     async def is_brand_due(cls, brand_id: int, plan: str, marketplace_id: int) -> bool:
@@ -137,33 +110,13 @@ class CrawlSchedulerService:
         eventually pick for this brand, used by trigger_crawl_now to run
         it on demand instead of waiting for the scheduler tick.
         """
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    SELECT
-                        bm.marketplace_id,
-                        bm.country_code,
-                        m.country_code AS marketplace_country_code
-                    FROM brand_marketplaces bm
-                    INNER JOIN brands b ON b.id = bm.brand_id
-                    INNER JOIN marketplaces m ON m.id = bm.marketplace_id
-                    WHERE bm.brand_id = %s AND bm.enabled = TRUE AND b.status = 'approved'
-                    ORDER BY bm.priority ASC, bm.marketplace_id ASC
-                    LIMIT 1
-                    """,
-                    (brand_id,),
-                )
-                row = await cur.fetchone()
-                if row is None:
-                    return None
-                return {
-                    "marketplace_id": int(row["marketplace_id"]),
-                    "country_code": row.get("country_code") or row.get("marketplace_country_code") or ACTIVE_COUNTRY_CODE,
-                }
+        row = await BrandMarketplaceRepository.get_primary_enabled_for_brand(brand_id)
+        if row is None:
+            return None
+        return {
+            "marketplace_id": int(row["marketplace_id"]),
+            "country_code": row.get("country_code") or row.get("marketplace_country_code") or ACTIVE_COUNTRY_CODE,
+        }
 
     @classmethod
     async def trigger_crawl_now(cls, brand_id: int) -> dict:

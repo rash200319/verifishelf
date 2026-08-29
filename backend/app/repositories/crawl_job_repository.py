@@ -1,11 +1,25 @@
+from __future__ import annotations
+
 from datetime import datetime
 
-from aiomysql.cursors import DictCursor
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import db
+from app.models import CrawlJob
 
 
 class CrawlJobRepository:
+    _FIELDS = [
+        "id",
+        "brand_id",
+        "marketplace_id",
+        "status",
+        "started_at",
+        "finished_at",
+        "created_at",
+    ]
+
     @staticmethod
     def _normalize_row(row: dict) -> dict:
         return {
@@ -19,124 +33,105 @@ class CrawlJobRepository:
         }
 
     @staticmethod
-    async def create_job(brand_id: int, marketplace_id: int, status: str = "queued"):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    INSERT INTO crawl_jobs (brand_id, marketplace_id, status)
-                    VALUES (%s, %s, %s)
-                    """,
-                    (brand_id, marketplace_id, status),
-                )
-                job_id = cur.lastrowid
-
-                await cur.execute(
-                    """
-                    SELECT id, brand_id, marketplace_id, status, started_at, finished_at, created_at
-                    FROM crawl_jobs
-                    WHERE id = %s
-                    """,
-                    (job_id,),
-                )
-                return CrawlJobRepository._normalize_row(await cur.fetchone())
+    async def create_job(
+        brand_id: int,
+        marketplace_id: int,
+        status: str = "queued",
+        session: AsyncSession | None = None,
+    ):
+        async with db.session_scope(session) as s:
+            job = CrawlJob(
+                brand_id=brand_id,
+                marketplace_id=marketplace_id,
+                status=status,
+            )
+            s.add(job)
+            await s.flush()
+            await s.refresh(job)
+            return CrawlJobRepository._normalize_row(
+                db.model_to_dict(job, CrawlJobRepository._FIELDS)
+            )
 
     @staticmethod
-    async def update_job_status(job_id: int, status: str, started_at: datetime | None = None, finished_at: datetime | None = None):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
+    async def update_job_status(
+        job_id: int,
+        status: str,
+        started_at: datetime | None = None,
+        finished_at: datetime | None = None,
+        session: AsyncSession | None = None,
+    ):
+        async with db.session_scope(session) as s:
+            job = await s.get(CrawlJob, job_id)
+            if job is None:
+                return None
 
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    UPDATE crawl_jobs
-                    SET status = %s,
-                        started_at = COALESCE(%s, started_at),
-                        finished_at = COALESCE(%s, finished_at)
-                    WHERE id = %s
-                    """,
-                    (status, started_at, finished_at, job_id),
-                )
-
-                await cur.execute(
-                    """
-                    SELECT id, brand_id, marketplace_id, status, started_at, finished_at, created_at
-                    FROM crawl_jobs
-                    WHERE id = %s
-                    """,
-                    (job_id,),
-                )
-                row = await cur.fetchone()
-                return CrawlJobRepository._normalize_row(row) if row else None
+            job.status = status
+            if started_at is not None:
+                job.started_at = started_at
+            if finished_at is not None:
+                job.finished_at = finished_at
+            await s.flush()
+            await s.refresh(job)
+            return CrawlJobRepository._normalize_row(
+                db.model_to_dict(job, CrawlJobRepository._FIELDS)
+            )
 
     @staticmethod
-    async def get_latest_job(brand_id: int, marketplace_id: int):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    SELECT id, brand_id, marketplace_id, status, started_at, finished_at, created_at
-                    FROM crawl_jobs
-                    WHERE brand_id = %s AND marketplace_id = %s
-                    ORDER BY created_at DESC, id DESC
-                    LIMIT 1
-                    """,
-                    (brand_id, marketplace_id),
+    async def get_latest_job(
+        brand_id: int,
+        marketplace_id: int,
+        session: AsyncSession | None = None,
+    ):
+        async with db.session_scope(session) as s:
+            stmt = (
+                select(CrawlJob)
+                .where(
+                    CrawlJob.brand_id == brand_id,
+                    CrawlJob.marketplace_id == marketplace_id,
                 )
-                row = await cur.fetchone()
-                if row is None:
-                    return None
-                return CrawlJobRepository._normalize_row(row)
+                .order_by(CrawlJob.created_at.desc(), CrawlJob.id.desc())
+                .limit(1)
+            )
+            row = (await s.execute(stmt)).scalar_one_or_none()
+            if row is None:
+                return None
+            return CrawlJobRepository._normalize_row(
+                db.model_to_dict(row, CrawlJobRepository._FIELDS)
+            )
 
     @staticmethod
-    async def list_jobs_for_brand(brand_id: int, limit: int = 20):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(
-                    """
-                    SELECT id, brand_id, marketplace_id, status, started_at, finished_at, created_at
-                    FROM crawl_jobs
-                    WHERE brand_id = %s
-                    ORDER BY created_at DESC, id DESC
-                    LIMIT %s
-                    """,
-                    (brand_id, limit),
-                )
-                rows = await cur.fetchall()
-                return [CrawlJobRepository._normalize_row(row) for row in rows]
+    async def list_jobs_for_brand(
+        brand_id: int,
+        limit: int = 20,
+        session: AsyncSession | None = None,
+    ):
+        async with db.session_scope(session) as s:
+            stmt = (
+                select(CrawlJob)
+                .where(CrawlJob.brand_id == brand_id)
+                .order_by(CrawlJob.created_at.desc(), CrawlJob.id.desc())
+                .limit(limit)
+            )
+            rows = (await s.execute(stmt)).scalars().all()
+            return [
+                CrawlJobRepository._normalize_row(db.model_to_dict(row, CrawlJobRepository._FIELDS))
+                for row in rows
+            ]
 
     @staticmethod
-    async def get_job(job_id: int, brand_id: int | None = None):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        query = """
-            SELECT id, brand_id, marketplace_id, status, started_at, finished_at, created_at
-            FROM crawl_jobs
-            WHERE id = %s
-        """
-        params: list = [job_id]
-
-        if brand_id is not None:
-            query += " AND brand_id = %s"
-            params.append(brand_id)
-
-        query += " LIMIT 1"
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(DictCursor) as cur:
-                await cur.execute(query, tuple(params))
-                row = await cur.fetchone()
-                if row is None:
-                    return None
-                return CrawlJobRepository._normalize_row(row)
+    async def get_job(
+        job_id: int,
+        brand_id: int | None = None,
+        session: AsyncSession | None = None,
+    ):
+        async with db.session_scope(session) as s:
+            stmt = select(CrawlJob).where(CrawlJob.id == job_id)
+            if brand_id is not None:
+                stmt = stmt.where(CrawlJob.brand_id == brand_id)
+            stmt = stmt.limit(1)
+            row = (await s.execute(stmt)).scalar_one_or_none()
+            if row is None:
+                return None
+            return CrawlJobRepository._normalize_row(
+                db.model_to_dict(row, CrawlJobRepository._FIELDS)
+            )

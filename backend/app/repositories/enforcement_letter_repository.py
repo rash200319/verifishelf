@@ -1,119 +1,115 @@
-import aiomysql
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import db
+from app.models import (
+    Brand,
+    BrandMarketplace,
+    EnforcementLetter,
+    Listing,
+    Product,
+    Seller,
+    Violation,
+)
 
 
 class EnforcementLetterRepository:
+    _FIELDS = [
+        "id",
+        "violation_id",
+        "letter_content",
+        "generated_by",
+        "screenshot_base64",
+        "status",
+        "sent_at",
+        "generated_at",
+    ]
+
     @staticmethod
     async def create_letter(
         violation_id: int,
         letter_content: str,
         generated_by: str = "template",
         screenshot_base64: str | None = None,
+        session: AsyncSession | None = None,
     ):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute(
-                    """
-                    INSERT INTO enforcement_letters (violation_id, letter_content, generated_by, screenshot_base64)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (violation_id, letter_content, generated_by, screenshot_base64),
-                )
-                letter_id = cur.lastrowid
-
-                await cur.execute(
-                    """
-                    SELECT id, violation_id, letter_content, generated_by, screenshot_base64, status, sent_at, generated_at
-                    FROM enforcement_letters
-                    WHERE id = %s
-                    """,
-                    (letter_id,),
-                )
-                return await cur.fetchone()
+        async with db.session_scope(session) as s:
+            letter = EnforcementLetter(
+                violation_id=violation_id,
+                letter_content=letter_content,
+                generated_by=generated_by,
+                screenshot_base64=screenshot_base64,
+            )
+            s.add(letter)
+            await s.flush()
+            await s.refresh(letter)
+            return db.model_to_dict(letter, EnforcementLetterRepository._FIELDS)
 
     @staticmethod
-    async def get_latest_for_violation(violation_id: int):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute(
-                    """
-                    SELECT id, violation_id, letter_content, generated_by, screenshot_base64, status, sent_at, generated_at
-                    FROM enforcement_letters
-                    WHERE violation_id = %s
-                    ORDER BY generated_at DESC, id DESC
-                    LIMIT 1
-                    """,
-                    (violation_id,),
-                )
-                return await cur.fetchone()
+    async def get_latest_for_violation(violation_id: int, session: AsyncSession | None = None):
+        async with db.session_scope(session) as s:
+            stmt = (
+                select(EnforcementLetter)
+                .where(EnforcementLetter.violation_id == violation_id)
+                .order_by(EnforcementLetter.generated_at.desc(), EnforcementLetter.id.desc())
+                .limit(1)
+            )
+            row = (await s.execute(stmt)).scalar_one_or_none()
+            return db.model_to_dict(row, EnforcementLetterRepository._FIELDS)
 
     @staticmethod
-    async def mark_sent(letter_id: int):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute(
-                    """
-                    UPDATE enforcement_letters
-                    SET status = 'sent', sent_at = CURRENT_TIMESTAMP
-                    WHERE id = %s
-                    """,
-                    (letter_id,),
-                )
-                await cur.execute(
-                    """
-                    SELECT id, violation_id, letter_content, generated_by, screenshot_base64, status, sent_at, generated_at
-                    FROM enforcement_letters
-                    WHERE id = %s
-                    """,
-                    (letter_id,),
-                )
-                return await cur.fetchone()
+    async def mark_sent(letter_id: int, session: AsyncSession | None = None):
+        async with db.session_scope(session) as s:
+            letter = await s.get(EnforcementLetter, letter_id)
+            if letter is None:
+                return None
+            letter.status = "sent"
+            letter.sent_at = datetime.utcnow()
+            await s.flush()
+            await s.refresh(letter)
+            return db.model_to_dict(letter, EnforcementLetterRepository._FIELDS)
 
     @staticmethod
-    async def get_violation_context(violation_id: int, brand_id: int):
-        if db.mysql_pool is None:
-            raise RuntimeError("MySQL pool is not initialized")
-
-        async with db.mysql_pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute(
-                    """
-                    SELECT
-                        v.id AS violation_id,
-                        v.map_price,
-                        v.advertised_price,
-                        v.price_delta_pct,
-                        v.status,
-                        v.detected_at,
-                        l.listing_title,
-                        l.listing_url,
-                        l.currency_code,
-                        p.name AS product_name,
-                        b.name AS brand_name,
-                        b.torch_sub_id,
-                        bm.country_code,
-                        s.seller_name,
-                        s.storefront_url
-                    FROM violations v
-                    INNER JOIN listings l ON l.id = v.listing_id
-                    INNER JOIN products p ON p.id = l.product_id
-                    INNER JOIN brands b ON b.id = p.brand_id
-                    INNER JOIN sellers s ON s.id = l.seller_id
-                    LEFT JOIN brand_marketplaces bm
-                        ON bm.brand_id = b.id AND bm.marketplace_id = l.marketplace_id
-                    WHERE v.id = %s AND p.brand_id = %s
-                    LIMIT 1
-                    """,
-                    (violation_id, brand_id),
+    async def get_violation_context(
+        violation_id: int,
+        brand_id: int,
+        session: AsyncSession | None = None,
+    ):
+        async with db.session_scope(session) as s:
+            stmt = (
+                select(
+                    Violation.id.label("violation_id"),
+                    Violation.map_price,
+                    Violation.advertised_price,
+                    Violation.price_delta_pct,
+                    Violation.status,
+                    Violation.detected_at,
+                    Listing.listing_title,
+                    Listing.listing_url,
+                    Listing.currency_code,
+                    Product.name.label("product_name"),
+                    Brand.name.label("brand_name"),
+                    Brand.torch_sub_id,
+                    BrandMarketplace.country_code,
+                    Seller.seller_name,
+                    Seller.storefront_url,
                 )
-                return await cur.fetchone()
+                .select_from(Violation)
+                .join(Listing, Listing.id == Violation.listing_id)
+                .join(Product, Product.id == Listing.product_id)
+                .join(Brand, Brand.id == Product.brand_id)
+                .join(Seller, Seller.id == Listing.seller_id)
+                .outerjoin(
+                    BrandMarketplace,
+                    (BrandMarketplace.brand_id == Brand.id)
+                    & (BrandMarketplace.marketplace_id == Listing.marketplace_id),
+                )
+                .where(Violation.id == violation_id, Product.brand_id == brand_id)
+                .limit(1)
+            )
+            row = (await s.execute(stmt)).mappings().first()
+            return dict(row) if row else None

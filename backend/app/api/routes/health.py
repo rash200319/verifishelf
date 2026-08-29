@@ -7,7 +7,7 @@ router = APIRouter()
 
 @router.get("/health")
 async def health():
-    mysql_ok = db.mysql_pool is not None
+    mysql_ok = await db.ping_mysql()
     redis_ok = db.redis_health_ok
 
     return {
